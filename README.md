@@ -32,7 +32,7 @@ Still a work in progress, I dont own a proper one, thus, I had to emulate the so
 
 
 ### Guitarra
-- Guitarra-Clasica.sf2
+- [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2)
 
 Sound font for Spanish Guitar.
 
