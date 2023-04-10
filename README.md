@@ -4,7 +4,8 @@ Sound Fonts for Spanish Plectro Orchestra.
 
 https://user-images.githubusercontent.com/161853/230922586-ccc289d1-93b2-4ee4-aa14-f38ddb9e39e5.mov
 
- ☝️ click to listen a [demo](https://musescore.com/user/46235/scores/10469212/s/uPKnxg)
+
+ ☝️ click to listen a demo sound, you can also try it in my [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg) space
 
 ### Bandurria (Bandurria Soprano)
 - [Bandurria.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria.sf2)
