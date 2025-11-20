@@ -7,7 +7,6 @@ Fuentes de sonido y plugin de automatización para Orquesta de Pulso y Púa.
 
 ☝️ haz clic para escuchar una demo de sonido, también puedes probarlo en mi espacio de [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg)
 
----
 
 ## Tabla de Contenidos
 - [Fuentes de Sonido](#fuentes-de-sonido)
@@ -19,34 +18,15 @@ Fuentes de sonido y plugin de automatización para Orquesta de Pulso y Púa.
   - [Atajo de Teclado](#atajo-de-teclado)
   - [Notas Importantes](#notas-importantes)
 
----
 
 ## Fuentes de Sonido
 
-### Bandurria (Bandurria Soprano)
-- [Bandurria.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria.sf2)
+- [Bandurria.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria.sf2) Fuente de sonido para Bandurria, tiene solo un canal con sonidos picados y sin trémolo
+- [Bandurria-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria-Con-Tremolo.sf2) Fuente de sonido para Bandurria, tiene un canal, para seleccionar sonidos picados usa velocidades 1-64, y para trémolo 65-127
+- [Laud.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud.sf2) Fuente de sonido para Laúd, tiene solo un canal con sonidos picados y sin trémolo
+- [Laud-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud-Con-Tremolo.sf2) Fuente de sonido para Laúd, tiene un canal, para seleccionar sonidos picados usa velocidades 1-64, y para trémolo 65-127
+- [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2) Fuente de sonido para Guitarra Clásica Española.
 
-Fuente de sonido para Bandurria, tiene solo un canal con sonidos picados y sin trémolo
-
-- [Bandurria-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria-Con-Tremolo.sf2)
-
-Fuente de sonido para Bandurria, tiene un canal, para seleccionar sonidos picados usa velocidades 1-64, y para trémolo 65-127
-
-### Laúd (Bandurria Tenor)
-- [Laud.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud.sf2)
-
-Fuente de sonido para Laúd, tiene solo un canal con sonidos picados y sin trémolo
-
-- [Laud-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud-Con-Tremolo.sf2)
-
-Fuente de sonido para Laúd, tiene un canal, para seleccionar sonidos picados usa velocidades 1-64, y para trémolo 65-127
-
-### Guitarra
-- [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2)
-
-Fuente de sonido para Guitarra Clásica Española.
-
----
 
 ## Plugin de MuseScore
 
@@ -81,7 +61,6 @@ El plugin desactiva la reproducción de ciertos elementos musicales porque:
 
 **Importante**: Desactivar la reproducción no elimina estos elementos de la partitura—permanecen visibles para los músicos que leen la partitura. Simplemente no afectan la reproducción MIDI.
 
----
 
 ### Características
 
@@ -89,7 +68,7 @@ El plugin **Pulso y Púa** proporciona tres funciones principales:
 
 #### 1. Añadir Trémolo
 
-<img src="images/Plugin-PulsoPua-Add-Tremolos.png" alt="Pestaña Añadir Trémolo" width="500">
+<img src="images/Plugin-PulsoPua-Add-Tremolos.png" alt="Pestaña Añadir Trémolo" width="400">
 
 Configura automáticamente tu partitura para reproducción de trémolo:
 
@@ -106,7 +85,7 @@ Configura automáticamente tu partitura para reproducción de trémolo:
 
 #### 2. Quitar Trémolo
 
-<img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Pestaña Quitar Trémolo" width="500">
+<img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Pestaña Quitar Trémolo" width="400">
 
 Revierte la configuración de trémolo:
 
@@ -117,7 +96,7 @@ Revierte la configuración de trémolo:
 
 #### 3. Gestor de Fuentes de Sonido
 
-<img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="Pestaña Gestor de Fuentes" width="500">
+<img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="Pestaña Gestor de Fuentes" width="400">
 
 Gestor integrado de descarga y actualización para fuentes de sonido Pulso y Púa:
 
@@ -126,7 +105,6 @@ Gestor integrado de descarga y actualización para fuentes de sonido Pulso y Pú
 - **Verificación de archivos** - valida archivos descargados
 - **Auto-actualización del plugin** - mantiene el plugin actualizado
 
----
 
 ### Instalación
 
@@ -150,7 +128,6 @@ Gestor integrado de descarga y actualización para fuentes de sonido Pulso y Pú
    - Haz clic en "Descargar Todas" o descarga individualmente
    - Las fuentes de sonido se instalarán en tu directorio de SoundFonts de MuseScore
 
----
 
 ### Uso
 
@@ -179,7 +156,6 @@ Gestor integrado de descarga y actualización para fuentes de sonido Pulso y Pú
 
 6. **Para quitar trémolo**: Usa la pestaña "Quitar Trémolo" con opciones similares
 
----
 
 ### Atajo de Teclado
 
@@ -192,7 +168,6 @@ Si usas este plugin frecuentemente, es muy recomendable asignar un atajo de tecl
 
 Ahora puedes alternar rápidamente la configuración de trémolo con tu atajo de teclado.
 
----
 
 ### Notas Importantes
 
@@ -235,7 +210,6 @@ El plugin te permite:
 - Procesar rangos seleccionados o toda la partitura
 - Mantener símbolos de trémolo solo visuales (desactivar reproducción de trémolo)
 
----
 
 ### Soporte
 
@@ -243,7 +217,6 @@ Para problemas, preguntas o contribuciones:
 - **GitHub Issues**: [Reportar un error o solicitar una característica](https://github.com/manolo/sound-fonts/issues)
 - **Foro de MuseScore**: [Discutir en MuseScore.org](https://musescore.org/en/user/46235)
 
----
 
 **© 2025 - Manolo Carrasco (do2tis)**
 

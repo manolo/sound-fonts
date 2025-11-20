@@ -7,7 +7,6 @@ Sound Fonts and automation plugin for Spanish Plectro Orchestra (Orquesta de Pul
 
 ☝️ click to listen a demo sound, you can also try it in my [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg) space
 
----
 
 ## Table of Contents
 - [Sound Fonts](#sound-fonts)
@@ -19,34 +18,15 @@ Sound Fonts and automation plugin for Spanish Plectro Orchestra (Orquesta de Pul
   - [Keyboard Shortcut](#keyboard-shortcut)
   - [Important Notes](#important-notes)
 
----
 
 ## Sound Fonts
 
-### Bandurria (Bandurria Soprano)
-- [Bandurria.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria.sf2)
+- [Bandurria.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria.sf2) Soundfont for Bandurria, it has only one channel with picked sounds and no tremolo
+- [Bandurria-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria-Con-Tremolo.sf2)  Soundfont for Bandurria, it has one channel, for selecting picked sounds use velocities 1-64, and for tremolo 65-127
+- [Laud.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud.sf2)  Soundfont for Laud, it has only one channel with picked sounds and no tremolo
+- [Laud-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud-Con-Tremolo.sf2)  Soundfont for Laud, it has one channel, for selecting picked sounds use velocities 1-64, and for tremolo 65-127
+- [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2) Sound font for Spanish Guitar.
 
-Soundfont for Bandurria, it has only one channel with picked sounds and no tremolo
-
-- [Bandurria-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Bandurria-Con-Tremolo.sf2) 
-
-Soundfont for Bandurria, it has one channel, for selecting picked sounds use velocities 1-64, and for tremolo 65-127
-
-### Laud (Bandurria Tenor)
-- [Laud.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud.sf2) 
-
-Soundfont for Laud, it has only one channel with picked sounds and no tremolo
-
-- [Laud-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud-Con-Tremolo.sf2) 
-
-Soundfont for Laud, it has one channel, for selecting picked sounds use velocities 1-64, and for tremolo 65-127
-
-### Guitarra
-- [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2)
-
-Sound font for Spanish Guitar.
-
----
 
 ## MuseScore Plugin
 
@@ -81,7 +61,6 @@ The plugin disables playback of certain musical elements because:
 
 **Important**: Disabling playback doesn't remove these elements from the score—they remain visible for musicians reading the sheet music. They simply don't affect MIDI playback.
 
----
 
 ### Features
 
@@ -89,7 +68,7 @@ The **Pulso y Púa** plugin provides three main functions:
 
 #### 1. Add Tremolo
 
-<img src="images/Plugin-PulsoPua-Add-Tremolos.png" alt="Add Tremolo Tab" width="500">
+<img src="images/Plugin-PulsoPua-Add-Tremolos.png" alt="Add Tremolo Tab" width="400">
 
 Automatically configures your score for tremolo playback:
 
@@ -106,7 +85,7 @@ Automatically configures your score for tremolo playback:
 
 #### 2. Remove Tremolo
 
-<img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Remove Tremolo Tab" width="500">
+<img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Remove Tremolo Tab" width="400">
 
 Reverses the tremolo configuration:
 
@@ -117,7 +96,7 @@ Reverses the tremolo configuration:
 
 #### 3. SoundFont Manager
 
-<img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="SoundFont Manager Tab" width="500">
+<img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="SoundFont Manager Tab" width="400">
 
 Built-in download and update manager for Pulso y Púa sound fonts:
 
@@ -126,7 +105,6 @@ Built-in download and update manager for Pulso y Púa sound fonts:
 - **File verification** - validates downloaded files
 - **Plugin self-update** - keeps the plugin up to date
 
----
 
 ### Installation
 
@@ -150,7 +128,6 @@ Built-in download and update manager for Pulso y Púa sound fonts:
    - Click "Download All" or download individually
    - The sound fonts will be installed to your MuseScore SoundFonts directory
 
----
 
 ### Usage
 
@@ -179,7 +156,6 @@ Built-in download and update manager for Pulso y Púa sound fonts:
 
 6. **To remove tremolo**: Use the "Remove Tremolo" tab with similar options
 
----
 
 ### Keyboard Shortcut
 
@@ -192,7 +168,6 @@ If you use this plugin frequently, it's highly recommended to assign a keyboard 
 
 Now you can quickly toggle tremolo configuration with your keyboard shortcut.
 
----
 
 ### Important Notes
 
@@ -235,7 +210,6 @@ The plugin allows you to:
 - Process selected ranges or entire score
 - Keep tremolo symbols visual-only (disable tremolo playback)
 
----
 
 ### Support
 
@@ -243,7 +217,6 @@ For issues, questions, or contributions:
 - **GitHub Issues**: [Report a bug or request a feature](https://github.com/manolo/sound-fonts/issues)
 - **MuseScore Forum**: [Discuss on MuseScore.org](https://musescore.org/en/user/46235)
 
----
 
 **© 2025 - Manolo Carrasco (do2tis)**
 
