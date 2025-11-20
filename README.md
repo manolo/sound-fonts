@@ -43,12 +43,6 @@ Soundfont for Laud, it has only one channel with picked sounds and no tremolo
 
 Soundfont for Laud, it has one channel, for selecting picked sounds use velocities 1-64, and for tremolo 65-127
 
-### Laudin (Bandurria Contralto)
-- [Laudin.sf2](https://github.com/manolo/sound-fonts/raw/main/Laudin.sf2)
-
-Still a work in progress, I dont own a proper one, thus, I had to emulate the sound with a mandolin
-
-
 ### Guitarra
 - [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2)
 

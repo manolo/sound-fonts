@@ -43,12 +43,6 @@ Fuente de sonido para Laúd, tiene solo un canal con sonidos picados y sin trém
 
 Fuente de sonido para Laúd, tiene un canal, para seleccionar sonidos picados usa velocidades 1-64, y para trémolo 65-127
 
-### Laudín (Bandurria Contralto)
-- [Laudin.sf2](https://github.com/manolo/sound-fonts/raw/main/Laudin.sf2)
-
-Todavía es un trabajo en progreso, no tengo uno propio, así que tuve que emular el sonido con una mandolina
-
-
 ### Guitarra
 - [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2)
 
