@@ -15,6 +15,7 @@ MuseScore {
 
   // Common properties
   property bool isSpanish: false
+  property bool hasSpannersAPI: false  // Whether curScore.spanners is available
 
   // Add Tremolo properties
   property var minDurationValue: 0.375
@@ -74,6 +75,7 @@ MuseScore {
 
   // SoundFont Check properties
   property string userSoundFontsDir: ""
+  property string userPluginsDir: ""
   property string remoteBaseUrl: "https://github.com/manolo/sound-fonts/raw/refs/heads/main"
   property bool curlAvailable: false
   property bool checkingCurl: true
@@ -175,6 +177,9 @@ MuseScore {
 
     // Check for selection (2 or more notes selected)
     if (curScore) {
+      // Check if curScore.spanners API is available
+      hasSpannersAPI = (typeof curScore.spanners !== 'undefined');
+
       var selection = curScore.selection;
       hasSelectionAdd = selection && selection.elements && selection.elements.length >= 2;
       hasSelectionRemove = hasSelectionAdd;
@@ -203,6 +208,13 @@ MuseScore {
       userSoundFontsDir = getDefaultPath();
     }
 
+    // Load saved Plugins directory or use default
+    if (settingsSoundFont.pluginsDirectory && settingsSoundFont.pluginsDirectory.length > 0) {
+      userPluginsDir = settingsSoundFont.pluginsDirectory;
+    } else {
+      userPluginsDir = getDefaultPluginsPath();
+    }
+
     // Load saved remote base URL or use default
     if (settingsSoundFont.remoteBaseUrl && settingsSoundFont.remoteBaseUrl.length > 0) {
       remoteBaseUrl = settingsSoundFont.remoteBaseUrl;
@@ -223,9 +235,6 @@ MuseScore {
 
     // Check for updates for all files
     checkAllUpdates();
-
-    // Check for plugin updates
-    checkPluginUpdate();
   }
 
   // Main UI
@@ -260,25 +269,6 @@ MuseScore {
             color: systemPalette.windowText
             anchors.verticalCenter: parent.verticalCenter
           }
-
-          Rectangle {
-            visible: pluginUpdateAvailable
-            width: updatePluginText.width + 20
-            height: 24
-            color: Qt.rgba(1.0, 0.6, 0.0, 0.15)
-            border.color: "#ff9800"
-            border.width: 2
-            radius: 3
-            anchors.verticalCenter: parent.verticalCenter
-
-            Text {
-              id: updatePluginText
-              text: isSpanish ? "⚠ Actualización disponible" : "⚠ Update available"
-              font.pixelSize: 11
-              color: "#ff9800"
-              anchors.centerIn: parent
-            }
-          }
         }
       }
 
@@ -304,12 +294,12 @@ MuseScore {
         }
 
         TabButton {
-          text: (updateAvailable || !soundfontFound ? "\u2717 " : "\u2713 ") + "SoundFonts"
+          text: isSpanish ? "Actualizaciones" : "Updates"
           height: 45
           contentItem: Text {
-            text: parent.text
+            text: (updateAvailable || pluginUpdateAvailable || !soundfontFound ? "\u2717 " : "\u2713 ") + parent.text
             font: parent.font
-            color: updateAvailable ? "#f44336" : !soundfontFound ? "#ff9800" : "#4caf50"
+            color: (updateAvailable || pluginUpdateAvailable) ? "#f44336" : !soundfontFound ? "#ff9800" : "#4caf50"
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
           }
@@ -783,10 +773,19 @@ MuseScore {
 
                 CheckBox {
                   height: 22
-                  text: isSpanish ?
-                    "No tocar reguladores" :
-                    "Don't play hairpins"
+                  text: {
+                    if (hasSpannersAPI) {
+                      return isSpanish ?
+                        "No tocar reguladores" :
+                        "Don't play hairpins"
+                    } else {
+                      return isSpanish ?
+                        "No tocar reguladores (necesita selección)" :
+                        "Don't play hairpins (needs selection)"
+                    }
+                  }
                   checked: settingsAdd.disableHairpins
+                  enabled: hasSpannersAPI || hasSelectionAdd
                   onCheckedChanged: settingsAdd.disableHairpins = checked
                 }
               }
@@ -895,10 +894,19 @@ MuseScore {
 
                 CheckBox {
                   height: 22
-                  text: isSpanish ?
-                    "Restaurar reproducción de reguladores" :
-                    "Restore hairpins playback"
+                  text: {
+                    if (hasSpannersAPI) {
+                      return isSpanish ?
+                        "Restaurar reproducción de reguladores" :
+                        "Restore hairpins playback"
+                    } else {
+                      return isSpanish ?
+                        "Restaurar reproducción de reguladores (necesita selección)" :
+                        "Restore hairpins playback (needs selection)"
+                    }
+                  }
                   checked: settingsRemove.restoreHairpins
+                  enabled: hasSpannersAPI || hasSelectionRemove
                   onCheckedChanged: settingsRemove.restoreHairpins = checked
                 }
               }
@@ -968,9 +976,9 @@ MuseScore {
             anchors.fill: parent
             anchors.margins: 20
 
-            // Status section - List of SoundFont files
+            // Status section - List of Files (Plugin + SoundFonts)
             Text {
-              text: isSpanish ? "Estado de archivos SoundFont:" : "SoundFont Files Status:"
+              text: isSpanish ? "Estado de archivos:" : "Files Status:"
               font.bold: true
               font.pixelSize: 13
               color: systemPalette.windowText
@@ -979,6 +987,62 @@ MuseScore {
             Column {
               width: parent.width
               spacing: 5
+
+              // Plugin update status (first item)
+              Rectangle {
+                visible: pluginUpdateAvailable || downloadingPlugin || pluginDownloadStatus.length > 0
+                width: parent.width
+                height: 40
+                color: pluginDownloadStatus.indexOf("✓") === 0 ? Qt.rgba(0.3, 0.8, 0.3, 0.15) :
+                       downloadingPlugin ? Qt.rgba(0.1, 0.6, 0.9, 0.15) :
+                       Qt.rgba(1.0, 0.6, 0.0, 0.15)
+                border.color: pluginDownloadStatus.indexOf("✓") === 0 ? "#4caf50" :
+                             downloadingPlugin ? "#1976d2" : "#ff9800"
+                border.width: 2
+                radius: 5
+
+                Row {
+                  anchors.fill: parent
+                  anchors.leftMargin: 15
+                  anchors.rightMargin: 15
+                  spacing: 10
+
+                  // Status icon
+                  Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: pluginDownloadStatus.indexOf("✓") === 0 ? "✓" :
+                          downloadingPlugin ? "⏳" : "⚠"
+                    font.pixelSize: 18
+                    font.bold: true
+                    color: pluginDownloadStatus.indexOf("✓") === 0 ? "#4caf50" :
+                          downloadingPlugin ? "#1976d2" : "#ff9800"
+                  }
+
+                  // Filename
+                  Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "PulsoPua.qml"
+                    font.pixelSize: 13
+                    color: systemPalette.windowText
+                  }
+
+                  Item { width: 1; height: 1 } // Spacer
+
+                  // Status text
+                  Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: downloadingPlugin ? (isSpanish ? "Descargando..." : "Downloading...") :
+                          pluginDownloadStatus.length > 0 ? (pluginDownloadStatus.indexOf("✓") === 0 ?
+                            (isSpanish ? "Actualizado" : "Updated") :
+                            (isSpanish ? "Error" : "Error")) :
+                          (isSpanish ? "Actualización disponible" : "Update available")
+                    font.pixelSize: 10
+                    color: pluginDownloadStatus.indexOf("✓") === 0 ? "#2e7d32" :
+                          pluginDownloadStatus.indexOf("✗") === 0 ? "#c62828" :
+                          downloadingPlugin ? "#1976d2" : systemPalette.windowText
+                  }
+                }
+              }
 
               Repeater {
                 model: soundfontFiles
@@ -1125,8 +1189,66 @@ MuseScore {
               }
             }
 
+            // Plugins directory location (editable)
             Text {
-              text: isSpanish ? "URL Remota:" : "Remote URL:"
+              text: isSpanish ? "Directorio Plugins:" : "Plugins Directory:"
+              font.bold: true
+              font.pixelSize: 12
+              color: systemPalette.windowText
+              width: parent.width
+            }
+
+            Column {
+              width: parent.width
+              spacing: 5
+
+              Row {
+                width: parent.width
+                spacing: 10
+
+                TextField {
+                  id: pluginsDirField
+                  width: parent.width - pluginsExistsIndicator.width - parent.spacing
+                  text: userPluginsDir
+                  font.pixelSize: 11
+                  font.family: "monospace"
+                  selectByMouse: true
+                  onTextChanged: {
+                    userPluginsDir = text;
+                    settingsSoundFont.pluginsDirectory = text;
+                  }
+                }
+
+                Text {
+                  id: pluginsExistsIndicator
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: {
+                    fileChecker.source = userPluginsDir;
+                    return fileChecker.exists() ? "✓" : "✗";
+                  }
+                  font.pixelSize: 18
+                  font.bold: true
+                  color: {
+                    fileChecker.source = userPluginsDir;
+                    return fileChecker.exists() ? "green" : "red";
+                  }
+                }
+              }
+
+              Text {
+                visible: {
+                  fileChecker.source = userPluginsDir;
+                  return !fileChecker.exists();
+                }
+                text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
+                font.pixelSize: 10
+                color: "orange"
+                font.italic: true
+              }
+            }
+
+            Text {
+              text: isSpanish ? "URL Base Remota para archivos:" : "Remote Base URL for files:"
               font.bold: true
               font.pixelSize: 12
               color: systemPalette.windowText
@@ -1245,65 +1367,6 @@ MuseScore {
               }
             }
 
-            // Plugin update section
-            Rectangle {
-              visible: pluginUpdateAvailable || downloadingPlugin || pluginDownloadStatus.length > 0
-              width: parent.width
-              height: pluginUpdateColumn.height + 30
-              color: Qt.rgba(1.0, 0.6, 0.0, 0.15)
-              border.color: pluginDownloadStatus.indexOf("✓") === 0 ? "#4caf50" : "#ff9800"
-              border.width: 2
-              radius: 5
-
-              Column {
-                id: pluginUpdateColumn
-                anchors.fill: parent
-                anchors.margins: 15
-                spacing: 10
-
-                Text {
-                  text: isSpanish ?
-                    "📦 Actualización del Plugin" :
-                    "📦 Plugin Update"
-                  font.bold: true
-                  font.pixelSize: 13
-                  color: "#ff9800"
-                }
-
-                Text {
-                  visible: pluginUpdateAvailable && !downloadingPlugin && pluginDownloadStatus.length === 0
-                  text: isSpanish ?
-                    "Hay una nueva versión del plugin PulsoPua.qml disponible.\n" +
-                    "Haz clic en 'Actualizar Plugin' abajo para descargarla." :
-                    "A new version of the PulsoPua.qml plugin is available.\n" +
-                    "Click 'Update Plugin' below to download it."
-                  font.pixelSize: 11
-                  color: systemPalette.windowText
-                  width: parent.width
-                  wrapMode: Text.WordWrap
-                }
-
-                Text {
-                  visible: downloadingPlugin
-                  text: isSpanish ?
-                    "⏳ Descargando actualización del plugin..." :
-                    "⏳ Downloading plugin update..."
-                  font.pixelSize: 11
-                  color: "#1976d2"
-                  width: parent.width
-                  wrapMode: Text.WordWrap
-                }
-
-                Text {
-                  visible: pluginDownloadStatus.length > 0
-                  text: pluginDownloadStatus
-                  font.pixelSize: 11
-                  color: pluginDownloadStatus.indexOf("✓") === 0 ? "#2e7d32" : "#c62828"
-                  width: parent.width
-                  wrapMode: Text.WordWrap
-                }
-              }
-            }
           }
         }
       }
@@ -1366,15 +1429,21 @@ MuseScore {
 
         // SoundFont buttons (visible for tab 2)
         Button {
-          visible: tabBar.currentIndex === 2 && ((getFoundFilesCount() < soundfontFiles.length || updateAvailable) && !anyDownloading && !showRestartButton)
-          text: updateAvailable ?
-            (isSpanish ? "Actualizar" : "Update") :
-            (isSpanish ? "Descargar e Instalar" : "Download and Install")
+          visible: tabBar.currentIndex === 2 &&
+                   ((getFoundFilesCount() < soundfontFiles.length || updateAvailable || pluginUpdateAvailable) &&
+                    !anyDownloading && !downloadingPlugin && !showRestartButton)
+          text: isSpanish ? "Descargar" : "Download"
           leftPadding: 15
           rightPadding: 15
+          highlighted: true
           anchors.verticalCenter: parent.verticalCenter
           onClicked: {
-            downloadSoundfont();
+            // Download plugin first if needed, then soundfonts
+            if (pluginUpdateAvailable) {
+              downloadPluginUpdate();
+            } else if (getFoundFilesCount() < soundfontFiles.length || updateAvailable) {
+              downloadSoundfont();
+            }
           }
         }
 
@@ -1387,18 +1456,6 @@ MuseScore {
           anchors.verticalCenter: parent.verticalCenter
           onClicked: {
             cmd("restart");
-          }
-        }
-
-        Button {
-          visible: tabBar.currentIndex === 2 && pluginUpdateAvailable && !downloadingPlugin
-          text: isSpanish ? "Actualizar Plugin" : "Update Plugin"
-          leftPadding: 15
-          rightPadding: 15
-          highlighted: true
-          anchors.verticalCenter: parent.verticalCenter
-          onClicked: {
-            downloadPluginUpdate();
           }
         }
 
@@ -1572,11 +1629,30 @@ MuseScore {
 
     var useSelectionRange = hasSelectionAdd && useSelectionAdd;
 
+    // CRITICAL: Collect hairpins BEFORE startCmd() because selection.elements
+    // is only populated when NOT inside a cmd transaction
+    // NOTE: This is only needed when curScore.spanners is NOT available
+    var preCollectedHairpins = [];
+    if (settingsAdd.disableHairpins && !hasSpannersAPI && hasSelectionAdd) {
+      console.log("Pre-collecting hairpins from selection...");
+      var selection = curScore.selection;
+      var elements = selection.elements;
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        // HairpinSegment has type 69
+        if (element.type === 69 || element.name === "HairpinSegment") {
+          preCollectedHairpins.push(element);
+        }
+      }
+      console.log("Pre-collected " + preCollectedHairpins.length + " hairpins");
+    }
+
     curScore.startCmd();
 
     try {
       var cursor = curScore.newCursor();
       var processedCount = 0;
+      var hairpinsDisabled = 0;
 
       var startTick, endTick;
       if (useSelectionRange) {
@@ -1733,10 +1809,62 @@ MuseScore {
         }
       }
 
-      // Note: curScore.spanners is not exposed in Plugin API
-      // Hairpins and trills are handled via note.spannerForward only
+      // Process hairpins - two different approaches depending on API availability
+      if (settingsAdd.disableHairpins) {
+        if (hasSpannersAPI) {
+          // Path 1: Use curScore.spanners API (custom build)
+          console.log("Using curScore.spanners API to disable hairpins...");
 
-      console.log("Processed " + processedCount + " chords");
+          if (curScore.spanners && curScore.spanners.length > 0) {
+            for (var i = 0; i < curScore.spanners.length; i++) {
+              var spanner = curScore.spanners[i];
+
+              if (spanner.type === Element.HAIRPIN) {
+                // Check if hairpin's track belongs to a bandurria/laúd staff
+                var spannerStaff = Math.floor(spanner.track / 4);
+                if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
+
+                // Check if hairpin is in the selected range
+                if (useSelectionRange) {
+                  var spannerTick = spanner.tick;
+                  if (spannerTick < startTick || spannerTick >= endTick) continue;
+                }
+
+                console.log("Disabling hairpin at tick " + spanner.tick);
+                spanner.play = false;
+                hairpinsDisabled++;
+              }
+            }
+            console.log("Disabled " + hairpinsDisabled + " hairpins using spanners API");
+          }
+        } else if (preCollectedHairpins.length > 0) {
+          // Path 2: Use pre-collected hairpins from selection (official MuseScore)
+          console.log("Disabling " + preCollectedHairpins.length + " pre-collected hairpins from selection...");
+
+          for (var h = 0; h < preCollectedHairpins.length; h++) {
+            var hairpin = preCollectedHairpins[h];
+
+            // Filter: Only process hairpins that belong to bandurria/laúd staves
+            if (hairpin.track !== undefined) {
+              var hairpinStaff = Math.floor(hairpin.track / 4);
+              if (bandurriaLaudStaves.indexOf(hairpinStaff) === -1) {
+                console.log("Skipping hairpin on staff " + hairpinStaff + " (not bandurria/laúd)");
+                continue;
+              }
+            }
+
+            if (hairpin.play !== undefined) {
+              hairpin.play = false;
+              hairpinsDisabled++;
+              console.log("Disabled hairpin on staff " + Math.floor(hairpin.track / 4));
+            }
+          }
+
+          console.log("Disabled " + hairpinsDisabled + " hairpins (filtered for bandurria/laúd only)");
+        }
+      }
+
+      console.log("Processed " + processedCount + " chords, disabled " + hairpinsDisabled + " hairpins");
       curScore.endCmd();
 
     } catch (e) {
@@ -1759,6 +1887,24 @@ MuseScore {
           ", useSelection=" + useSelectionRemove);
 
     var useSelectionRange = hasSelectionRemove && useSelectionRemove;
+
+    // CRITICAL: Collect hairpins BEFORE startCmd() because selection.elements
+    // is only populated when NOT inside a cmd transaction
+    // NOTE: This is only needed when curScore.spanners is NOT available
+    var preCollectedHairpins = [];
+    if (settingsRemove.restoreHairpins && !hasSpannersAPI && hasSelectionRemove) {
+      console.log("Pre-collecting hairpins from selection...");
+      var selection = curScore.selection;
+      var elements = selection.elements;
+      for (var i = 0; i < elements.length; i++) {
+        var element = elements[i];
+        // HairpinSegment has type 69
+        if (element.type === 69 || element.name === "HairpinSegment") {
+          preCollectedHairpins.push(element);
+        }
+      }
+      console.log("Pre-collected " + preCollectedHairpins.length + " hairpins");
+    }
 
     curScore.startCmd();
 
@@ -1906,17 +2052,14 @@ MuseScore {
                 }
               }
 
-              // Check for hairpins and ornament spanners (trills) via note spanners if enabled
-              if (settingsRemove.restoreHairpins || settingsRemove.restoreOrnaments) {
+              // Check for ornament spanners (trills) via note spanners if enabled
+              if (settingsRemove.restoreOrnaments) {
                 for (var i = 0; i < chord.notes.length; i++) {
                   if (chord.notes[i].spannerForward) {
                     for (var j = 0; j < chord.notes[i].spannerForward.length; j++) {
                       var spanner = chord.notes[i].spannerForward[j];
                       if (spanner) {
-                        if (spanner.type === Element.HAIRPIN && settingsRemove.restoreHairpins) {
-                          spanner.play = true;
-                          hairpinsRestored++;
-                        } else if (spanner.type === Element.TRILL && settingsRemove.restoreOrnaments) {
+                        if (spanner.type === Element.TRILL) {
                           console.log("Restoring ornament spanner (trill line)");
                           spanner.play = true;
                           articulationsRestored++;
@@ -1928,7 +2071,7 @@ MuseScore {
               }
             }
 
-            // Restore dynamics and hairpins in annotations if enabled
+            // Restore dynamics in annotations if enabled
             if (cursor.segment.annotations) {
               for (var i = 0; i < cursor.segment.annotations.length; i++) {
                 var annotation = cursor.segment.annotations[i];
@@ -1940,13 +2083,6 @@ MuseScore {
                 if (settingsRemove.restoreDynamics && (annotation.type === Element.DYNAMIC || annotation.type === Element.EXPRESSION)) {
                   annotation.play = true;
                   dynamicsRestored++;
-                } else if (settingsRemove.restoreHairpins && (annotation.type === Element.HAIRPIN || annotation.type === Element.HAIRPIN_SEGMENT)) {
-                  if (annotation.spanner) {
-                    annotation.spanner.play = true;
-                  } else {
-                    annotation.play = true;
-                  }
-                  hairpinsRestored++;
                 }
               }
             }
@@ -1956,8 +2092,60 @@ MuseScore {
         }
       }
 
-      // Note: curScore.spanners is not exposed in Plugin API
-      // Hairpins and trills are restored via note.spannerForward only
+      // Restore hairpins - two different approaches depending on API availability
+      if (settingsRemove.restoreHairpins) {
+        if (hasSpannersAPI) {
+          // Path 1: Use curScore.spanners API (custom build)
+          console.log("Using curScore.spanners API to restore hairpins...");
+
+          if (curScore.spanners && curScore.spanners.length > 0) {
+            for (var i = 0; i < curScore.spanners.length; i++) {
+              var spanner = curScore.spanners[i];
+
+              if (spanner.type === Element.HAIRPIN) {
+                // Check if hairpin's track belongs to a bandurria/laúd staff
+                var spannerStaff = Math.floor(spanner.track / 4);
+                if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
+
+                // Check if hairpin is in the selected range
+                if (useSelectionRange) {
+                  var spannerTick = spanner.tick;
+                  if (spannerTick < startTick || spannerTick >= endTick) continue;
+                }
+
+                console.log("Restoring hairpin at tick " + spanner.tick);
+                spanner.play = true;
+                hairpinsRestored++;
+              }
+            }
+            console.log("Restored " + hairpinsRestored + " hairpins using spanners API");
+          }
+        } else if (preCollectedHairpins.length > 0) {
+          // Path 2: Use pre-collected hairpins from selection (official MuseScore)
+          console.log("Restoring " + preCollectedHairpins.length + " pre-collected hairpins from selection...");
+
+          for (var h = 0; h < preCollectedHairpins.length; h++) {
+            var hairpin = preCollectedHairpins[h];
+
+            // Filter: Only process hairpins that belong to bandurria/laúd staves
+            if (hairpin.track !== undefined) {
+              var hairpinStaff = Math.floor(hairpin.track / 4);
+              if (bandurriaLaudStaves.indexOf(hairpinStaff) === -1) {
+                console.log("Skipping hairpin on staff " + hairpinStaff + " (not bandurria/laúd)");
+                continue;
+              }
+            }
+
+            if (hairpin.play !== undefined) {
+              hairpin.play = true;
+              hairpinsRestored++;
+              console.log("Restored hairpin on staff " + Math.floor(hairpin.track / 4));
+            }
+          }
+
+          console.log("Restored " + hairpinsRestored + " hairpins (filtered for bandurria/laúd only)");
+        }
+      }
 
       console.log("Removed " + tremolosRemoved + " tremolo symbols");
       console.log("Restored " + notesRestored + " notes");
@@ -1985,6 +2173,19 @@ MuseScore {
     } else {
       fileChecker.source = home + "/.local/share/MuseScore/MuseScore4/SoundFonts";
       return fileChecker.exists() ? fileChecker.source : home + "/Documents/MuseScore4/SoundFonts";
+    }
+  }
+
+  function getDefaultPluginsPath() {
+    var home = fileChecker.homePath();
+
+    if (Qt.platform.os === "osx" || Qt.platform.os === "macos") {
+      return home + "/Documents/MuseScore4/Plugins";
+    } else if (Qt.platform.os === "windows") {
+      return home + "\\Documents\\MuseScore4\\Plugins";
+    } else {
+      fileChecker.source = home + "/.local/share/MuseScore/MuseScore4/Plugins";
+      return fileChecker.exists() ? fileChecker.source : home + "/Documents/MuseScore4/Plugins";
     }
   }
 
@@ -2200,6 +2401,11 @@ MuseScore {
       curlAvailable = (exitCode === 0 || exitCode === 2);
       checkingCurl = false;
       console.log("curl available: " + curlAvailable);
+
+      // Now that curl check is complete, check for plugin updates
+      if (curlAvailable) {
+        checkPluginUpdate();
+      }
     });
 
     process.startWithArgs("curl", ["--version"]);
@@ -2441,7 +2647,7 @@ MuseScore {
     }
 
     // Get local plugin size
-    var localSize = getFileSize(pluginPath);
+    var localSize = getLocalFileSize(pluginPath);
     console.log("Local plugin size: " + localSize);
 
     // Check remote plugin size using HEAD request
@@ -2451,24 +2657,27 @@ MuseScore {
       checkingPluginUpdate = false;
       if (exitCode === 0) {
         var output = String(process.readAllStandardOutput());
-        // Extract Content-Length from headers
-        var match = output.match(/[Cc]ontent-[Ll]ength:\s*(\d+)/);
-        if (match) {
-          var remoteSize = parseInt(match[1]);
-          console.log("Remote plugin size: " + remoteSize);
+        // Extract Content-Length from headers (get the last one after redirects)
+        var matches = output.match(/[Cc]ontent-[Ll]ength:\s*(\d+)/g);
+        if (matches && matches.length > 0) {
+          var lastMatch = matches[matches.length - 1].match(/(\d+)/);
+          if (lastMatch) {
+            var remoteSize = parseInt(lastMatch[1]);
+            console.log("Remote plugin size: " + remoteSize);
 
-          if (remoteSize > 0 && remoteSize !== localSize) {
-            pluginUpdateAvailable = true;
-            console.log("Plugin update available!");
-          } else {
-            console.log("Plugin is up to date");
+            if (remoteSize > 0 && remoteSize !== localSize) {
+              pluginUpdateAvailable = true;
+              console.log("Plugin update available!");
+            } else {
+              console.log("Plugin is up to date");
+            }
           }
         }
       }
     });
 
-    // Use curl with HEAD request to check remote file size
-    process.startWithArgs("curl", ["-sI", pluginRemoteUrl]);
+    // Use curl with HEAD request (follow redirects with -L)
+    process.startWithArgs("curl", ["-sLI", pluginRemoteUrl]);
   }
 
   function downloadPluginUpdate() {
@@ -2476,11 +2685,14 @@ MuseScore {
     downloadingPlugin = true;
     pluginDownloadStatus = "";
 
-    // Get current plugin directory
-    var pluginPath = Qt.resolvedUrl("PulsoPua.qml").toString();
-    if (pluginPath.indexOf("file://") === 0) {
-      pluginPath = pluginPath.substring(7);
+    // Use the configured plugins directory
+    var pluginPath = userPluginsDir;
+    if (pluginPath.charAt(pluginPath.length - 1) !== "/" && pluginPath.charAt(pluginPath.length - 1) !== "\\") {
+      pluginPath += (Qt.platform.os === "windows") ? "\\" : "/";
     }
+    pluginPath += "PulsoPua.qml";
+
+    console.log("Plugin will be downloaded to: " + pluginPath);
 
     // Create backup of current plugin
     var backupPath = pluginPath + ".backup";
@@ -2493,7 +2705,7 @@ MuseScore {
 
       if (exitCode === 0) {
         // Verify download
-        var newSize = getFileSize(pluginPath);
+        var newSize = getLocalFileSize(pluginPath);
         console.log("Downloaded plugin size: " + newSize);
 
         if (newSize > 0) {
