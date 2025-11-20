@@ -1,6 +1,8 @@
 # Pulso y Púa Sound Fonts & MuseScore Plugin
 Sound Fonts and automation plugin for Spanish Plectro Orchestra (Orquesta de Pulso y Púa).
 
+🇪🇸 [**Leer en español**](README.es.md)
+
 
 https://user-images.githubusercontent.com/161853/230922586-ccc289d1-93b2-4ee4-aa14-f38ddb9e39e5.mov
 
