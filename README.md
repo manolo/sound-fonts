@@ -95,6 +95,8 @@ The **Pulso y Púa** plugin provides three main functions:
 
 #### 1. Add Tremolo
 
+<img src="images/Plugin-PulsoPua-Add-Tremolos.png" alt="Add Tremolo Tab" width="500">
+
 Automatically configures your score for tremolo playback:
 
 - **Add tremolo symbols** to long notes (configurable duration threshold)
@@ -110,6 +112,8 @@ Automatically configures your score for tremolo playback:
 
 #### 2. Remove Tremolo
 
+<img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Remove Tremolo Tab" width="500">
+
 Reverses the tremolo configuration:
 
 - **Remove tremolo symbols**
@@ -118,6 +122,8 @@ Reverses the tremolo configuration:
 - **Restore dynamics, articulations, ornaments, and hairpins** playback
 
 #### 3. SoundFont Manager
+
+<img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="SoundFont Manager Tab" width="500">
 
 Built-in download and update manager for Pulso y Púa sound fonts:
 
