@@ -3,11 +3,9 @@ Fuentes de sonido y plugin de automatización para Orquesta de Pulso y Púa.
 
 🇬🇧 [**Read in English**](README.md)
 
+<video src="https://user-images.githubusercontent.com/161853/230922586-ccc289d1-93b2-4ee4-aa14-f38ddb9e39e5.mov" height="150" controls></video>
 
-https://user-images.githubusercontent.com/161853/230922586-ccc289d1-93b2-4ee4-aa14-f38ddb9e39e5.mov
-
-
- ☝️ haz clic para escuchar una demo de sonido, también puedes probarlo en mi espacio de [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg)
+☝️ haz clic para escuchar una demo de sonido, también puedes probarlo en mi espacio de [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg)
 
 ---
 

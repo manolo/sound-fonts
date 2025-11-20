@@ -3,11 +3,9 @@ Sound Fonts and automation plugin for Spanish Plectro Orchestra (Orquesta de Pul
 
 🇪🇸 [**Leer en español**](README.es.md)
 
+<video src="https://user-images.githubusercontent.com/161853/230922586-ccc289d1-93b2-4ee4-aa14-f38ddb9e39e5.mov" height="150" controls></video>
 
-https://user-images.githubusercontent.com/161853/230922586-ccc289d1-93b2-4ee4-aa14-f38ddb9e39e5.mov
-
-
- ☝️ click to listen a demo sound, you can also try it in my [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg) space
+☝️ click to listen a demo sound, you can also try it in my [musescore](https://musescore.com/user/46235/scores/10469212/s/uPKnxg) space
 
 ---
 
