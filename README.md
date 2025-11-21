@@ -87,23 +87,13 @@ Automatically configures your score for tremolo playback:
 
 <img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Remove Tremolo Tab" width="400">
 
-Reverses the tremolo configuration:
-
-- **Remove tremolo symbols**
-- **Restore default note velocity**
-- **Re-enable note playback**
-- **Restore dynamics, articulations, ornaments, and hairpins** playback
+Reverses all tremolo configuration: removes symbols, restores velocities and playback for notes, dynamics, articulations, ornaments, and hairpins.
 
 #### 3. SoundFont Manager
 
 <img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="SoundFont Manager Tab" width="400">
 
-Built-in download and update manager for Pulso y Púa sound fonts:
-
-- **Automatic download** of Bandurria and Laúd sound fonts
-- **Update detection** - checks for newer versions online
-- **File verification** - validates downloaded files
-- **Plugin self-update** - keeps the plugin up to date
+Built-in manager to download, update, and verify Bandurria and Laúd sound fonts, plus plugin self-update.
 
 
 ### Installation

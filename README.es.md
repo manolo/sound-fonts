@@ -87,23 +87,13 @@ Configura automáticamente tu partitura para reproducción de trémolo:
 
 <img src="images/Plugin-PulsoPua-Remove-Tremolos.png" alt="Pestaña Quitar Trémolo" width="400">
 
-Revierte la configuración de trémolo:
-
-- **Elimina símbolos de trémolo**
-- **Restaura velocidad predeterminada de notas**
-- **Reactiva reproducción de notas**
-- **Restaura reproducción de dinámicas, articulaciones, ornamentos y reguladores**
+Revierte toda la configuración de trémolo: elimina símbolos, restaura velocidades y reproducción de notas, dinámicas, articulaciones, ornamentos y reguladores.
 
 #### 3. Gestor de Fuentes de Sonido
 
 <img src="images/Plugin-PulsoPua-Update-Fonts.png" alt="Pestaña Gestor de Fuentes" width="400">
 
-Gestor integrado de descarga y actualización para fuentes de sonido Pulso y Púa:
-
-- **Descarga automática** de fuentes de sonido de Bandurria y Laúd
-- **Detección de actualizaciones** - verifica versiones más nuevas en línea
-- **Verificación de archivos** - valida archivos descargados
-- **Auto-actualización del plugin** - mantiene el plugin actualizado
+Gestor integrado para descargar, actualizar y verificar las fuentes de sonido de Bandurria y Laúd, además de auto-actualización del plugin.
 
 
 ### Instalación
