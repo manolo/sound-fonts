@@ -46,7 +46,7 @@ La bandurria y el laúd son instrumentos de púa únicos donde la técnica carac
 
 3. **La Configuración Manual es Tediosa**: Sin automatización, tendrías que:
    - Establecer manualmente la velocidad a 65 para cada nota larga
-   - Añadir símbolos de trémolo (cosmético, para la partitura)
+   - Añadir símbolos de trémolo (cosmético, para la partitura) y desactivar su reproducción para evitar el molesto sonido sintético de trémolo
    - Desactivar la reproducción de dinámicas, articulaciones y reguladores que interfieren con el trémolo
    - Desactivar la reproducción de notas ligadas (solo debe sonar la primera nota)
    - Manejar casos especiales (notas staccato, trinos, notas cortas, etc.)

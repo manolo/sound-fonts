@@ -46,7 +46,7 @@ Bandurria and laúd are unique plucked instruments where the characteristic trem
 
 3. **Manual Configuration is Tedious**: Without automation, you would need to:
    - Manually set velocity to 65 for every long note
-   - Add tremolo symbols (cosmetic, for sheet music)
+   - Add tremolo symbols (cosmetic, for sheet music) and disable their playback to avoid the annoying synthetic tremolo sound
    - Disable playback of dynamics, articulations, and hairpins that interfere with tremolo
    - Disable tied notes playback (only the first note should sound)
    - Handle special cases (staccato notes, trills, short notes, etc.)
