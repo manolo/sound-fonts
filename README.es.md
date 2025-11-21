@@ -202,6 +202,9 @@ Después de añadir la configuración de trémolo:
 3. Cambia la fuente de sonido a **"Bandurria-Con-Tremolo"** o **"Laud-Con-Tremolo"**
 4. Las notas con velocidad ≥65 ahora se reproducirán con sonido de trémolo
 
+<img src="images/Bandurria-Con-Tremolo.png" alt="Selección de Bandurria en el Mezclador" width="400">
+<img src="images/Laud-Con-Tremolo.png" alt="Selección de Laúd en el Mezclador" width="400">
+
 #### Personalización
 
 El plugin te permite:

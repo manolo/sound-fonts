@@ -202,6 +202,9 @@ After adding tremolo configuration:
 3. Change sound font to **"Bandurria-Con-Tremolo"** or **"Laud-Con-Tremolo"**
 4. Notes with velocity ≥65 will now play with tremolo sound
 
+<img src="images/Bandurria-Con-Tremolo.png" alt="Bandurria Mixer Selection" width="400">
+<img src="images/Laud-Con-Tremolo.png" alt="Laud Mixer Selection" width="400">
+
 #### Customization
 
 The plugin allows you to:
