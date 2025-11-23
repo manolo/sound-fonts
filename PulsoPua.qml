@@ -1054,41 +1054,6 @@ MuseScore {
                       color: "#1976d2"
                       font.italic: true
                     }
-
-                    Text {
-                      visible: pluginDownloadStatus.indexOf("✓") === 0
-                      height: visible ? implicitHeight : 0
-                      text: isSpanish ? "Actualizado" : "Updated"
-                      font.pixelSize: 9
-                      color: "#4caf50"
-                      font.italic: true
-                    }
-
-                    Text {
-                      visible: pluginDownloadStatus.indexOf("✗") === 0
-                      height: visible ? implicitHeight : 0
-                      text: isSpanish ? "Error en descarga" : "Download error"
-                      font.pixelSize: 9
-                      color: "#f44336"
-                      font.italic: true
-                    }
-
-                    Text {
-                      visible: pluginUpdateAvailable && !downloadingPlugin && pluginDownloadStatus.length === 0
-                      height: visible ? implicitHeight : 0
-                      text: isSpanish ? "Actualización disponible" : "Update available"
-                      font.pixelSize: 9
-                      color: "#ff9800"
-                    }
-
-                    Text {
-                      visible: !pluginUpdateAvailable && !downloadingPlugin && pluginDownloadStatus.length === 0
-                      height: visible ? implicitHeight : 0
-                      text: isSpanish ? "Versión actual" : "Up to date"
-                      font.pixelSize: 9
-                      color: "#4caf50"
-                      font.italic: true
-                    }
                   }
                 }
               }
@@ -1098,20 +1063,37 @@ MuseScore {
 
                 Rectangle {
                   width: parent.width
-                  height: 40
+                  height: 32
                   color: {
                     if (!filesStatus[modelData]) return systemPalette.base;
-                    if (filesStatus[modelData].found) {
-                      return filesStatus[modelData].needsUpdate ?
-                          Qt.rgba(1.0, 0.6, 0.0, 0.15) : Qt.rgba(0.3, 0.8, 0.3, 0.15);
+                    var status = filesStatus[modelData];
+
+                    // Show download progress
+                    if (status.downloading) return "#d1ecf1";  // Azul claro
+                    if (status.downloadComplete) return "#d4edda";  // Verde claro
+                    if (status.downloadError) return "#f8d7da";  // Rojo claro
+
+                    // Normal status colors
+                    if (status.found) {
+                      return status.needsUpdate ? "#fff3cd" : "#d4edda";  // Naranja claro : Verde claro
                     }
-                    return Qt.rgba(1.0, 0.2, 0.2, 0.15);
+                    return "#f8d7da";  // Rojo claro (no instalado)
                   }
-                  border.color: filesStatus[modelData] && filesStatus[modelData].found ?
-                               (filesStatus[modelData].needsUpdate ? "#ff9800" : "#4caf50") :
-                               "#f44336"
-                  border.width: 2
-                  radius: 3
+                  border.color: {
+                    if (!filesStatus[modelData]) return "#ccc";
+                    var status = filesStatus[modelData];
+
+                    if (status.downloading) return "#1976d2";
+                    if (status.downloadComplete) return "#4caf50";
+                    if (status.downloadError) return "#f44336";
+
+                    if (status.found) {
+                      return status.needsUpdate ? "#ff9800" : "#4caf50";
+                    }
+                    return "#f44336";
+                  }
+                  border.width: 1
+                  radius: 4
 
                   Row {
                     anchors.fill: parent
@@ -1121,8 +1103,14 @@ MuseScore {
                     Text {
                       text: {
                         if (!filesStatus[modelData]) return "?";
-                        if (filesStatus[modelData].found) {
-                          return filesStatus[modelData].needsUpdate ? "⚠" : "✓";
+                        var status = filesStatus[modelData];
+
+                        if (status.downloading) return "⏳";
+                        if (status.downloadComplete) return "✓";
+                        if (status.downloadError) return "✗";
+
+                        if (status.found) {
+                          return status.needsUpdate ? "⚠" : "✓";
                         }
                         return "✗";
                       }
@@ -1130,8 +1118,14 @@ MuseScore {
                       font.bold: true
                       color: {
                         if (!filesStatus[modelData]) return systemPalette.windowText;
-                        if (filesStatus[modelData].found) {
-                          return filesStatus[modelData].needsUpdate ? "#ff9800" : "#4caf50";
+                        var status = filesStatus[modelData];
+
+                        if (status.downloading) return "#1976d2";
+                        if (status.downloadComplete) return "#4caf50";
+                        if (status.downloadError) return "#f44336";
+
+                        if (status.found) {
+                          return status.needsUpdate ? "#ff9800" : "#4caf50";
                         }
                         return "#f44336";
                       }
@@ -1151,22 +1145,11 @@ MuseScore {
                       }
 
                       Text {
-                        visible: filesStatus[modelData] && filesStatus[modelData].found && filesStatus[modelData].needsUpdate
-                        text: {
-                          if (!filesStatus[modelData]) return "";
-                          var localMB = (filesStatus[modelData].localSize / 1024 / 1024).toFixed(2);
-                          var remoteMB = (filesStatus[modelData].remoteSize / 1024 / 1024).toFixed(2);
-                          return localMB + " MB → " + remoteMB + " MB";
-                        }
+                        visible: filesStatus[modelData] && filesStatus[modelData].downloading === true
+                        height: visible ? implicitHeight : 0
+                        text: isSpanish ? "Descargando..." : "Downloading..."
                         font.pixelSize: 9
-                        color: "#ff9800"
-                      }
-
-                      Text {
-                        visible: filesStatus[modelData] && !filesStatus[modelData].found
-                        text: isSpanish ? "No instalado" : "Not installed"
-                        font.pixelSize: 9
-                        color: "#f44336"
+                        color: "#1976d2"
                         font.italic: true
                       }
                     }
@@ -2429,8 +2412,10 @@ MuseScore {
             console.log("✓ " + filename + " is up to date");
           }
 
-          // Force UI update
-          filesStatusChanged();
+          // Force UI update by reassigning the object
+          var temp = filesStatus;
+          filesStatus = {};
+          filesStatus = temp;
         }
       }
     };
