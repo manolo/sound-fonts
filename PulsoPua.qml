@@ -1,4 +1,3 @@
-
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.3
@@ -9,7 +8,7 @@ MuseScore {
   id: plugin
   title: "Pulso y Púa"
   description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-  version: "1.1"
+  version: "3.0"
   pluginType: "dialog"
   width: 650
   height: 700
@@ -91,7 +90,6 @@ MuseScore {
   property bool checkingPluginUpdate: false
   property bool downloadingPlugin: false
   property string pluginDownloadStatus: ""
-  property var downloadPluginUpdateComplete: null
 
   // List of soundfont files to manage
   property var soundfontFiles: [
@@ -101,7 +99,7 @@ MuseScore {
     "Laud-Con-Tremolo.sf2"
   ]
 
-  // Status for each file: { found: bool, needsUpdate: bool, localSize: int, remoteSize: int, localDate: string, remoteDate: string, downloading: bool, downloadComplete: bool, downloadError: bool }
+  // Status for each file: { found: bool, needsUpdate: bool, localSize: int, remoteSize: int, localDate: string, remoteDate: string }
   property var filesStatus: ({})
 
   property bool anyDownloading: false
@@ -122,7 +120,7 @@ MuseScore {
   // Use system palette for theme-aware colors
   SystemPalette { id: systemPalette; colorGroup: SystemPalette.Active }
 
-// FileIO for SoundFont checking
+  // FileIO for SoundFont checking
   FileIO {
     id: fileChecker
     source: ""
@@ -199,10 +197,7 @@ MuseScore {
         localSize: 0,
         remoteSize: 0,
         localDate: "",
-        remoteDate: "",
-        downloading: false,
-        downloadComplete: false,
-        downloadError: false
+        remoteDate: ""
       };
     }
 
@@ -359,1175 +354,1071 @@ MuseScore {
           Item {
             id: addTremoloContent
 
-            ScrollView {
-              anchors.fill: parent
-              clip: true
+          ScrollView {
+            anchors.fill: parent
+            clip: true
 
-              Column {
-                spacing: 15
-                width: addTremoloContent.width - 40
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.topMargin: 20
-                topPadding: 20
-                leftPadding: 20
-
-                Row {
-                  spacing: 20
-                  width: parent.width
-
-                  // Left column: Minimum duration
-                  Column {
-                    spacing: 10
-                    width: (parent.width - parent.spacing) * 0.48
-
-                    Text {
-                      text: isSpanish ?
-                        "Valor mínimo para trémolo:" :
-                        "Minimum duration for tremolo:"
-                      font.bold: true
-                      font.pixelSize: 13
-                      wrapMode: Text.WordWrap
-                      width: parent.width
-                      color: systemPalette.windowText
-                    }
-
-                    ButtonGroup {
-                      id: durationGroup
-                    }
-
-                    Column {
-                      spacing: 2
-                      width: parent.width
-
-                      // Dotted eighth
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D7\u2009\u2009\uE1E7"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_dotted8th
-                          text: isSpanish ? "Corchea con puntillo" : "Dotted eighth"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 0.1875;
-                              settingsAdd.savedDuration = 0.1875;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 0.1875) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-
-                      // Quarter note
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D5"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_quarter
-                          text: isSpanish ? "Negra" : "Quarter note"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 0.25;
-                              settingsAdd.savedDuration = 0.25;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 0.25) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-
-                      // Dotted quarter
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D5\u2009\u2009\uE1E7"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_dotted_quarter
-                          text: isSpanish ? "Negra con puntillo" : "Dotted quarter"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 0.375;
-                              settingsAdd.savedDuration = 0.375;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 0.375) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-
-                      // Half note
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D3"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_half
-                          text: isSpanish ? "Blanca" : "Half note"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 0.5;
-                              settingsAdd.savedDuration = 0.5;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 0.5) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-
-                      // Dotted half
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D3\u2009\u2009\uE1E7"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_dotted_half
-                          text: isSpanish ? "Blanca con puntillo" : "Dotted half"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 0.75;
-                              settingsAdd.savedDuration = 0.75;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 0.75) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-
-                      // Whole note
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D2"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_whole
-                          text: isSpanish ? "Redonda" : "Whole note"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 1.0;
-                              settingsAdd.savedDuration = 1.0;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 1.0) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-
-                      // Dotted whole
-                      Row {
-                        spacing: 8
-                        width: parent.width
-                        height: 30
-
-                        Text {
-                          text: "\uE1D2\u2009\u2009\uE1E7"
-                          font.family: "Bravura"
-                          font.pixelSize: 20
-                          width: 20
-                          leftPadding: 10
-                          horizontalAlignment: Text.AlignLeft
-                          anchors.verticalCenter: parent.verticalCenter
-                          color: systemPalette.windowText
-                        }
-
-                        RadioButton {
-                          id: radio_dotted_whole
-                          text: isSpanish ? "Redonda con puntillo" : "Dotted whole"
-                          ButtonGroup.group: durationGroup
-                          onCheckedChanged: {
-                            if (checked) {
-                              minDurationValue = 1.5;
-                              settingsAdd.savedDuration = 1.5;
-                            }
-                          }
-                          anchors.verticalCenter: parent.verticalCenter
-                          Component.onCompleted: {
-                            if (Math.abs(minDurationValue - 1.5) < 0.001) {
-                              checked = true;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-
-                  // Right column: Processing range
-                  Column {
-                    spacing: 10
-                    width: (parent.width - parent.spacing) * 0.48
-
-                    Text {
-                      text: isSpanish ?
-                        "Aplicar a:" :
-                        "Apply to:"
-                      font.bold: true
-                      font.pixelSize: 13
-                      wrapMode: Text.WordWrap
-                      width: parent.width
-                      color: systemPalette.windowText
-                    }
-
-                    Column {
-                      width: parent.width
-                      spacing: 1
-
-                      RadioButton {
-                        id: radioSelectionAdd
-                        text: isSpanish ?
-                          "Rango seleccionado" :
-                          "Selected range"
-                        enabled: hasSelectionAdd
-                        checked: hasSelectionAdd && useSelectionAdd
-                        onCheckedChanged: {
-                          if (checked) useSelectionAdd = true
-                        }
-                      }
-
-                      RadioButton {
-                        id: radioEntireScoreAdd
-                        text: isSpanish ?
-                          "Toda la partitura" :
-                          "Entire score"
-                        checked: !hasSelectionAdd || !useSelectionAdd
-                        onCheckedChanged: {
-                          if (checked) useSelectionAdd = false
-                        }
-                      }
-                    }
-                  }
-                }
-
-                Text {
-                  text: isSpanish ?
-                    "Operaciones:" :
-                    "Operations:"
-                  font.bold: true
-                  font.pixelSize: 13
-                  wrapMode: Text.WordWrap
-                  width: parent.width
-                  color: systemPalette.windowText
-                }
-
-                Column {
-                  width: parent.width
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Añadir símbolos de trémolo" :
-                      "Add tremolo symbols"
-                    checked: settingsAdd.addTremoloSymbols
-                    onCheckedChanged: settingsAdd.addTremoloSymbols = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Establecer velocidad de notas a 65 (reproduce trémolo)" :
-                      "Set note velocity to 65 (play tremolo sound)"
-                    checked: settingsAdd.setNoteVelocity
-                    onCheckedChanged: settingsAdd.setNoteVelocity = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "No tocar notas ligadas" :
-                      "Don't play tied notes"
-                    checked: settingsAdd.disableTiedNotes
-                    onCheckedChanged: settingsAdd.disableTiedNotes = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "No tocar símbolos de trémolo" :
-                      "Don't play tremolo symbols"
-                    checked: settingsAdd.disableTremoloPlayback
-                    onCheckedChanged: settingsAdd.disableTremoloPlayback = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "No tocar dinámicas" :
-                      "Don't play dynamics"
-                    checked: settingsAdd.disableDynamics
-                    onCheckedChanged: settingsAdd.disableDynamics = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "No tocar articulaciones" :
-                      "Don't play articulations"
-                    checked: settingsAdd.disableArticulations
-                    onCheckedChanged: settingsAdd.disableArticulations = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "No tocar ornamentos (trinos, mordentes, etc.)" :
-                      "Don't play ornaments (trills, mordents, etc.)"
-                    checked: settingsAdd.disableOrnaments
-                    onCheckedChanged: settingsAdd.disableOrnaments = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: {
-                      if (hasSpannersAPI) {
-                        return isSpanish ?
-                          "No tocar reguladores" :
-                          "Don't play hairpins"
-                      } else {
-                        return isSpanish ?
-                          "No tocar reguladores (necesita selección)" :
-                          "Don't play hairpins (needs selection)"
-                      }
-                    }
-                    checked: settingsAdd.disableHairpins
-                    enabled: hasSpannersAPI || hasSelectionAdd
-                    onCheckedChanged: settingsAdd.disableHairpins = checked
-                  }
-                }
-              }
-            }
-
-            // Note at bottom
-            Text {
-              text: isSpanish ?
-                "NOTA: Solo se procesarán instrumentos de bandurria y laúd" :
-                "NOTE: Will only process bandurria and laud instruments"
-              font.pixelSize: 12
-              font.italic: true
-              wrapMode: Text.WordWrap
-              width: parent.width - 30
-              color: systemPalette.windowText
-              anchors.bottom: parent.bottom
-              anchors.horizontalCenter: parent.horizontalCenter
-              anchors.bottomMargin: 10
-            }
-          }
- 
-
-          // Tab 1: Remove Tremolo
-          Item {
-            id: removeTremoloContent
-
-            ScrollView {
-              anchors.fill: parent
-              clip: true
-
-              Column {
-                spacing: 15
-                width: removeTremoloContent.width - 40
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.topMargin: 20
-                topPadding: 20
-                leftPadding: 20
-
-                Text {
-                  text: isSpanish ?
-                    "Operaciones:" :
-                    "Operations to perform:"
-                  font.bold: true
-                  font.pixelSize: 13
-                  wrapMode: Text.WordWrap
-                  width: parent.width
-                  color: systemPalette.windowText
-                }
-
-                Column {
-                  width: parent.width
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Eliminar símbolos de trémolo" :
-                      "Remove tremolo symbols"
-                    checked: settingsRemove.removeTremolos
-                    onCheckedChanged: settingsRemove.removeTremolos = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Restaurar velocidad de notas (valor predeterminado)" :
-                      "Restore note velocity (default value)"
-                    checked: settingsRemove.restoreVelocity
-                    onCheckedChanged: settingsRemove.restoreVelocity = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Restaurar reproducción de notas" :
-                      "Restore note playback"
-                    checked: settingsRemove.restoreNotePlayback
-                    onCheckedChanged: settingsRemove.restoreNotePlayback = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Restaurar reproducción de dinámicas" :
-                      "Restore dynamics playback"
-                    checked: settingsRemove.restoreDynamics
-                    onCheckedChanged: settingsRemove.restoreDynamics = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Restaurar reproducción de articulaciones" :
-                      "Restore articulations playback"
-                    checked: settingsRemove.restoreArticulations
-                    onCheckedChanged: settingsRemove.restoreArticulations = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: isSpanish ?
-                      "Restaurar reproducción de ornamentos" :
-                      "Restore ornaments playback"
-                    checked: settingsRemove.restoreOrnaments
-                    onCheckedChanged: settingsRemove.restoreOrnaments = checked
-                  }
-
-                  CheckBox {
-                    height: 22
-                    text: {
-                      if (hasSpannersAPI) {
-                        return isSpanish ?
-                          "Restaurar reproducción de reguladores" :
-                          "Restore hairpins playback"
-                      } else {
-                        return isSpanish ?
-                          "Restaurar reproducción de reguladores (necesita selección)" :
-                          "Restore hairpins playback (needs selection)"
-                      }
-                    }
-                    checked: settingsRemove.restoreHairpins
-                    enabled: hasSpannersAPI || hasSelectionRemove
-                    onCheckedChanged: settingsRemove.restoreHairpins = checked
-                  }
-                }
-
-                Text {
-                  text: isSpanish ?
-                    "Aplicar a:" :
-                    "Apply to:"
-                  font.bold: true
-                  font.pixelSize: 13
-                  wrapMode: Text.WordWrap
-                  width: parent.width
-                  color: systemPalette.windowText
-                }
-
-                Column {
-                  width: parent.width
-
-                  RadioButton {
-                    id: radioSelectionRemove
-                    height: 22
-                    text: isSpanish ?
-                      "Rango seleccionado" :
-                      "Selected range"
-                    enabled: hasSelectionRemove
-                    checked: hasSelectionRemove && useSelectionRemove
-                    onCheckedChanged: {
-                      if (checked) useSelectionRemove = true
-                    }
-                  }
-
-                  RadioButton {
-                    id: radioEntireScoreRemove
-                    height: 22
-                    text: isSpanish ?
-                      "Toda la partitura" :
-                      "Entire score"
-                    checked: !hasSelectionRemove || !useSelectionRemove
-                    onCheckedChanged: {
-                      if (checked) useSelectionRemove = false
-                    }
-                  }
-                }
-              }
-            }
-
-            // Note at bottom
-            Text {
-              text: isSpanish ?
-                "NOTA: Solo se procesarán instrumentos de bandurria y laúd" :
-                "NOTE: Will only process bandurria and laud instruments"
-              font.pixelSize: 12
-              font.italic: true
-              wrapMode: Text.WordWrap
-              width: parent.width - 30
-              color: systemPalette.windowText
-              anchors.bottom: parent.bottom
-              anchors.horizontalCenter: parent.horizontalCenter
-              anchors.bottomMargin: 10
-            }
-          }
-
-
-          // Tab 2: SoundFont Check
-          Item {
-            // Two-column row: Files (left) and Instructions (right)
-            Row {
-              id: filesAndInstructionsRow
-              anchors.top: parent.top
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.margins: 20
-              height: Math.floor(parent.height * 0.5)
-              spacing: 20
-
-                // LEFT COLUMN: Files list
-                Column {
-                  width: Math.floor(parent.width * 0.55)
-                  height: parent.height
-                  spacing: 10
-
-                  Text {
-                    text: isSpanish ? "Estado de archivos:" : "Files Status:"
-                    font.bold: true
-                    font.pixelSize: 13
-                    color: systemPalette.windowText
-                  }
-
-                  ScrollView {
-                    width: parent.width
-                    height: parent.height - 25
-                    clip: true
-
-                    Column {
-                      width: parent.width - 10
-                      spacing: 5
-
-                      // Plugin update status (first item)
-                      Rectangle {
-                        visible: pluginUpdateAvailable || downloadingPlugin || pluginDownloadStatus.length > 0
-                        width: parent.width
-                        height: 32
-                        color: {
-                          if (pluginDownloadStatus.indexOf("✓") === 0) return "#d4edda";  // Verde claro
-                          if (pluginDownloadStatus.indexOf("✗") === 0) return "#f8d7da";  // Rojo claro
-                          if (downloadingPlugin) return "#d1ecf1";  // Azul claro
-                          return "#fff3cd";  // Naranja claro (actualización disponible)
-                        }
-                        border.color: {
-                          if (pluginDownloadStatus.indexOf("✓") === 0) return "#4caf50";
-                          if (pluginDownloadStatus.indexOf("✗") === 0) return "#f44336";
-                          if (downloadingPlugin) return "#1976d2";
-                          return "#ff9800";
-                        }
-                        border.width: 1
-                        radius: 4
-
-                        Row {
-                          anchors.fill: parent
-                          anchors.margins: 8
-                          spacing: 10
-
-                          Text {
-                            text: pluginDownloadStatus.indexOf("✓") === 0 ? "✓" :
-                                  downloadingPlugin ? "⏳" : "⚠"
-                            font.pixelSize: 16
-                            font.bold: true
-                            color: pluginDownloadStatus.indexOf("✓") === 0 ? "#4caf50" :
-                                  downloadingPlugin ? "#1976d2" : "#ff9800"
-                            anchors.verticalCenter: parent.verticalCenter
-                          }
-
-                          Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 2
-                            width: parent.width - 40
-
-                            Text {
-                              text: "PulsoPua.qml"
-                              font.pixelSize: 11
-                              font.bold: true
-                              color: systemPalette.windowText
-                            }
-
-                            Text {
-                              visible: downloadingPlugin
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Descargando..." : "Downloading..."
-                              font.pixelSize: 9
-                              color: "#1976d2"
-                              font.italic: true
-                            }
-
-                            Text {
-                              visible: pluginDownloadStatus.indexOf("✓") === 0
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Actualizado" : "Updated"
-                              font.pixelSize: 9
-                              color: "#4caf50"
-                              font.italic: true
-                            }
-
-                            Text {
-                              visible: pluginDownloadStatus.indexOf("✗") === 0
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Error en descarga" : "Download error"
-                              font.pixelSize: 9
-                              color: "#f44336"
-                              font.italic: true
-                            }
-
-                            Text {
-                              visible: pluginUpdateAvailable && !downloadingPlugin && pluginDownloadStatus.length === 0
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Actualización disponible" : "Update available"
-                              font.pixelSize: 9
-                              color: "#ff9800"
-                            }
-                          }
-                        }
-                      }
-
-                    // SoundFont files
-                    Repeater {
-                      model: soundfontFiles
-
-                      Rectangle {
-                        width: parent.width
-                        height: 32
-                        color: {
-                          if (!filesStatus[modelData]) return systemPalette.base;
-                          var status = filesStatus[modelData];
-
-                          // Show download progress
-                          if (status.downloading) return "#d1ecf1";  // Azul claro
-                          if (status.downloadComplete) return "#d4edda";  // Verde claro
-                          if (status.downloadError) return "#f8d7da";  // Rojo claro
-
-                          // Normal status colors
-                          if (status.found) {
-                            return status.needsUpdate ? "#fff3cd" : "#d4edda";  // Naranja claro : Verde claro
-                          }
-                          return "#f8d7da";  // Rojo claro (no instalado)
-                        }
-                        border.color: {
-                          if (!filesStatus[modelData]) return "#ccc";
-                          var status = filesStatus[modelData];
-
-                          if (status.downloading) return "#1976d2";
-                          if (status.downloadComplete) return "#4caf50";
-                          if (status.downloadError) return "#f44336";
-
-                          if (status.found) {
-                            return status.needsUpdate ? "#ff9800" : "#4caf50";
-                          }
-                          return "#f44336";
-                        }
-                        border.width: 1
-                        radius: 4
-
-                        Row {
-                          anchors.fill: parent
-                          anchors.margins: 8
-                          spacing: 10
-
-                          Text {
-                            text: {
-                              if (!filesStatus[modelData]) return "?";
-                              var status = filesStatus[modelData];
-
-                              if (status.downloading) return "⏳";
-                              if (status.downloadComplete) return "✓";
-                              if (status.downloadError) return "✗";
-
-                              if (status.found) {
-                                return status.needsUpdate ? "⚠" : "✓";
-                              }
-                              return "✗";
-                            }
-                            font.pixelSize: 16
-                            font.bold: true
-                            color: {
-                              if (!filesStatus[modelData]) return systemPalette.windowText;
-                              var status = filesStatus[modelData];
-
-                              if (status.downloading) return "#1976d2";
-                              if (status.downloadComplete) return "#4caf50";
-                              if (status.downloadError) return "#f44336";
-
-                              if (status.found) {
-                                return status.needsUpdate ? "#ff9800" : "#4caf50";
-                              }
-                              return "#f44336";
-                            }
-                            anchors.verticalCenter: parent.verticalCenter
-                          }
-
-                          Column {
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 2
-                            width: parent.width - 40
-
-                            Text {
-                              text: modelData
-                              font.pixelSize: 11
-                              font.bold: true
-                              color: systemPalette.windowText
-                            }
-
-                            Text {
-                              visible: filesStatus[modelData] && filesStatus[modelData].downloading
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Descargando..." : "Downloading..."
-                              font.pixelSize: 9
-                              color: "#1976d2"
-                              font.italic: true
-                            }
-
-                            Text {
-                              visible: filesStatus[modelData] && filesStatus[modelData].downloadComplete
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Descargado correctamente" : "Downloaded successfully"
-                              font.pixelSize: 9
-                              color: "#4caf50"
-                              font.italic: true
-                            }
-
-                            Text {
-                              visible: filesStatus[modelData] && filesStatus[modelData].downloadError
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "Error en descarga" : "Download error"
-                              font.pixelSize: 9
-                              color: "#f44336"
-                              font.italic: true
-                            }
-
-                            Text {
-                              visible: filesStatus[modelData] && filesStatus[modelData].found &&
-                                      filesStatus[modelData].needsUpdate && !filesStatus[modelData].downloading
-                              height: visible ? implicitHeight : 0
-                              text: {
-                                if (!filesStatus[modelData]) return "";
-                                var localMB = (filesStatus[modelData].localSize / 1024 / 1024).toFixed(2);
-                                var remoteMB = (filesStatus[modelData].remoteSize / 1024 / 1024).toFixed(2);
-                                return localMB + " MB → " + remoteMB + " MB";
-                              }
-                              font.pixelSize: 9
-                              color: "#ff9800"
-                            }
-
-                            Text {
-                              visible: filesStatus[modelData] && !filesStatus[modelData].found &&
-                                      !filesStatus[modelData].downloading && !filesStatus[modelData].downloadComplete
-                              height: visible ? implicitHeight : 0
-                              text: isSpanish ? "No instalado" : "Not installed"
-                              font.pixelSize: 9
-                              color: "#f44336"
-                              font.italic: true
-                            }
-                          }
-                        }
-                      }
-                    }
-                    }
-                  }
-                }
-
-                  // RIGHT COLUMN: Instructions
-                Column {
-                  width: Math.ceil(parent.width * 0.45) - 20
-                  height: parent.height
-                  spacing: 10
-
-                  Text {
-                    text: isSpanish ? "Instrucciones:" : "Instructions:"
-                    font.bold: true
-                    font.pixelSize: 13
-                    color: systemPalette.windowText
-                  }
-
-                  ScrollView {
-                    width: parent.width
-                    height: parent.height - 25
-                    clip: true
-
-                    Column {
-                      width: parent.width - 10
-                      spacing: 10
-
-                      // Completion message
-                      Rectangle {
-                        visible: showRestartButton
-                        width: parent.width
-                        height: contentColRight.height + 20
-                        color: "#e8f5e9"
-                        border.color: "#4caf50"
-                        border.width: 2
-                        radius: 5
-
-                        Column {
-                          id: contentColRight
-                          anchors.centerIn: parent
-                          anchors.margins: 10
-                          spacing: 8
-                          width: parent.width - 20
-
-                          Text {
-                            text: isSpanish ?
-                              "Todos los archivos instalados correctamente" :
-                              "All files installed successfully"
-                            font.pixelSize: 12
-                            font.bold: true
-                            color: "#2e7d32"
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            horizontalAlignment: Text.AlignHCenter
-                          }
-
-                          Text {
-                            text: isSpanish ?
-                              "Haz clic en 'Reiniciar MuseScore' para usar los nuevos soundfonts." :
-                              "Click 'Restart MuseScore' to use the new soundfonts."
-                            font.pixelSize: 10
-                            color: "#2e7d32"
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                          }
-                        }
-                      }
-
-                      // Instructions (if any files missing or need update)
-                      Rectangle {
-                        visible: (getFoundFilesCount() < soundfontFiles.length || updateAvailable || pluginUpdateAvailable) &&
-                                  !anyDownloading && !downloadingPlugin && !showRestartButton
-                        width: parent.width
-                        height: instrColRight.height + 20
-                        color: Qt.rgba(0.1, 0.6, 0.9, 0.05)
-                        border.color: "#2196f3"
-                        border.width: 1
-                        radius: 5
-
-                        Column {
-                          id: instrColRight
-                          anchors.centerIn: parent
-                          anchors.margins: 10
-                          spacing: 8
-                          width: parent.width - 20
-
-                          Text {
-                            text: isSpanish ?
-                              "1. Verifica que el directorio SoundFonts sea correcto\n" +
-                              "2. Verifica que la URL remota sea correcta\n" +
-                              "3. Haz clic en 'Descargar' para obtener todos los archivos\n" +
-                              "4. Después de instalar, reinicia MuseScore\n" +
-                              "5. En el Mixer (F10), selecciona el SoundFont deseado" :
-                              "1. Verify the SoundFonts directory is correct\n" +
-                              "2. Verify the remote URL is correct\n" +
-                              "3. Click 'Download' to get all files\n" +
-                              "4. After installation, restart MuseScore\n" +
-                              "5. In the Mixer (F10), select the desired SoundFont"
-                            font.pixelSize: 10
-                            wrapMode: Text.WordWrap
-                            width: parent.width
-                            color: systemPalette.windowText
-                            lineHeight: 1.3
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-            }
-
-            // Configuration section (below the two-column row)
             Column {
-              anchors.top: filesAndInstructionsRow.bottom
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.bottom: parent.bottom
-              anchors.margins: 20
-              anchors.topMargin: 15
-              spacing: 10
+              spacing: 15
+              width: addTremoloContent.width - 40
+              anchors.horizontalCenter: parent.horizontalCenter
+              anchors.topMargin: 20
+              topPadding: 20
+              leftPadding: 20
 
-              // SoundFonts directory location (editable)
-              Text {
-                text: isSpanish ? "Directorio SoundFonts:" : "SoundFonts Directory:"
-                font.bold: true
-                font.pixelSize: 11
-                color: systemPalette.windowText
+              Row {
+                spacing: 20
                 width: parent.width
-              }
 
-              Column {
-                width: parent.width
-                spacing: 5
-
-                Row {
-                  width: parent.width
+                // Left column: Minimum duration
+                Column {
                   spacing: 10
-
-                  TextField {
-                    id: soundFontsDirField
-                    width: parent.width - existsIndicator.width - parent.spacing
-                    text: userSoundFontsDir
-                    font.pixelSize: 10
-                    font.family: "monospace"
-                    selectByMouse: true
-                    onTextChanged: {
-                      userSoundFontsDir = text;
-                      settingsSoundFont.soundFontsDirectory = text;
-                      checkAllSoundfonts();
-                      checkAllUpdates();
-                    }
-                  }
+                  width: (parent.width - parent.spacing) * 0.48
 
                   Text {
-                    id: existsIndicator
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: {
-                      if (!directoryExists) return "?";
-                      var found = getFoundFilesCount();
-                      var total = soundfontFiles.length;
-                      return found + "/" + total;
-                    }
+                    text: isSpanish ?
+                      "Valor mínimo para trémolo:" :
+                      "Minimum duration for tremolo:"
+                    font.bold: true
                     font.pixelSize: 13
-                    font.bold: true
-                    color: {
-                      if (!directoryExists) return "orange";
-                      var found = getFoundFilesCount();
-                      var total = soundfontFiles.length;
-                      if (found === 0) return "red";
-                      if (found === total) return "green";
-                      return "orange";
+                    wrapMode: Text.WordWrap
+                    width: parent.width
+                    color: systemPalette.windowText
+                  }
+
+                  ButtonGroup {
+                    id: durationGroup
+                  }
+
+                  Column {
+                    spacing: 2
+                    width: parent.width
+
+                    // Dotted eighth
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D7\u2009\u2009\uE1E7"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_dotted8th
+                        text: isSpanish ? "Corchea con puntillo" : "Dotted eighth"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 0.1875;
+                            settingsAdd.savedDuration = 0.1875;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 0.1875) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // Quarter note
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D5"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_quarter
+                        text: isSpanish ? "Negra" : "Quarter note"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 0.25;
+                            settingsAdd.savedDuration = 0.25;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 0.25) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // Dotted quarter
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D5\u2009\u2009\uE1E7"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_dotted_quarter
+                        text: isSpanish ? "Negra con puntillo" : "Dotted quarter"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 0.375;
+                            settingsAdd.savedDuration = 0.375;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 0.375) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // Half note
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D3"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_half
+                        text: isSpanish ? "Blanca" : "Half note"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 0.5;
+                            settingsAdd.savedDuration = 0.5;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 0.5) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // Dotted half
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D3\u2009\u2009\uE1E7"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_dotted_half
+                        text: isSpanish ? "Blanca con puntillo" : "Dotted half"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 0.75;
+                            settingsAdd.savedDuration = 0.75;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 0.75) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // Whole note
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D2"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_whole
+                        text: isSpanish ? "Redonda" : "Whole note"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 1.0;
+                            settingsAdd.savedDuration = 1.0;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 1.0) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
+                    }
+
+                    // Dotted whole
+                    Row {
+                      spacing: 8
+                      width: parent.width
+                      height: 30
+
+                      Text {
+                        text: "\uE1D2\u2009\u2009\uE1E7"
+                        font.family: "Bravura"
+                        font.pixelSize: 20
+                        width: 20
+                        leftPadding: 10
+                        horizontalAlignment: Text.AlignLeft
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: systemPalette.windowText
+                      }
+
+                      RadioButton {
+                        id: radio_dotted_whole
+                        text: isSpanish ? "Redonda con puntillo" : "Dotted whole"
+                        ButtonGroup.group: durationGroup
+                        onCheckedChanged: {
+                          if (checked) {
+                            minDurationValue = 1.5;
+                            settingsAdd.savedDuration = 1.5;
+                          }
+                        }
+                        anchors.verticalCenter: parent.verticalCenter
+                        Component.onCompleted: {
+                          if (Math.abs(minDurationValue - 1.5) < 0.001) {
+                            checked = true;
+                          }
+                        }
+                      }
                     }
                   }
                 }
 
-                Text {
-                  visible: !directoryExists
-                  text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
-                  font.pixelSize: 9
-                  color: "orange"
-                  font.italic: true
+                // Right column: Processing range
+                Column {
+                  spacing: 10
+                  width: (parent.width - parent.spacing) * 0.48
+
+                  Text {
+                    text: isSpanish ?
+                      "Aplicar a:" :
+                      "Apply to:"
+                    font.bold: true
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                    width: parent.width
+                    color: systemPalette.windowText
+                  }
+
+                  Column {
+                    width: parent.width
+                    spacing: 1
+
+                    RadioButton {
+                      id: radioSelectionAdd
+                      text: isSpanish ?
+                        "Rango seleccionado" :
+                        "Selected range"
+                      enabled: hasSelectionAdd
+                      checked: hasSelectionAdd && useSelectionAdd
+                      onCheckedChanged: {
+                        if (checked) useSelectionAdd = true
+                      }
+                    }
+
+                    RadioButton {
+                      id: radioEntireScoreAdd
+                      text: isSpanish ?
+                        "Toda la partitura" :
+                        "Entire score"
+                      checked: !hasSelectionAdd || !useSelectionAdd
+                      onCheckedChanged: {
+                        if (checked) useSelectionAdd = false
+                      }
+                    }
+                  }
                 }
               }
 
-              // Plugins directory location (editable)
               Text {
-                text: isSpanish ? "Directorio Plugins:" : "Plugins Directory:"
+                text: isSpanish ?
+                  "Operaciones:" :
+                  "Operations:"
                 font.bold: true
-                font.pixelSize: 11
-                color: systemPalette.windowText
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
                 width: parent.width
+                color: systemPalette.windowText
               }
 
               Column {
                 width: parent.width
-                spacing: 5
 
-                Row {
-                  width: parent.width
-                  spacing: 10
-
-                  TextField {
-                    id: pluginsDirField
-                    width: parent.width - pluginsExistsIndicator.width - parent.spacing
-                    text: userPluginsDir
-                    font.pixelSize: 10
-                    font.family: "monospace"
-                    selectByMouse: true
-                    onTextChanged: {
-                      userPluginsDir = text;
-                      settingsSoundFont.pluginsDirectory = text;
-                    }
-                  }
-
-                  Text {
-                    id: pluginsExistsIndicator
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: {
-                      fileChecker.source = userPluginsDir;
-                      return fileChecker.exists() ? "✓" : "✗";
-                    }
-                    font.pixelSize: 16
-                    font.bold: true
-                    color: {
-                      fileChecker.source = userPluginsDir;
-                      return fileChecker.exists() ? "green" : "red";
-                    }
-                  }
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Añadir símbolos de trémolo" :
+                    "Add tremolo symbols"
+                  checked: settingsAdd.addTremoloSymbols
+                  onCheckedChanged: settingsAdd.addTremoloSymbols = checked
                 }
 
-                Text {
-                  visible: {
-                    fileChecker.source = userPluginsDir;
-                    return !fileChecker.exists();
-                  }
-                  text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
-                  font.pixelSize: 9
-                  color: "orange"
-                  font.italic: true
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Establecer velocidad de notas a 65 (reproduce trémolo)" :
+                    "Set note velocity to 65 (play tremolo sound)"
+                  checked: settingsAdd.setNoteVelocity
+                  onCheckedChanged: settingsAdd.setNoteVelocity = checked
                 }
-              }
 
-              // URL Base Remota
-              Text {
-                text: isSpanish ? "URL Base Remota:" : "Remote Base URL:"
-                font.bold: true
-                font.pixelSize: 11
-                color: systemPalette.windowText
-                width: parent.width
-              }
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "No tocar notas ligadas" :
+                    "Don't play tied notes"
+                  checked: settingsAdd.disableTiedNotes
+                  onCheckedChanged: settingsAdd.disableTiedNotes = checked
+                }
 
-              Column {
-                width: parent.width
-                spacing: 5
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "No tocar símbolos de trémolo" :
+                    "Don't play tremolo symbols"
+                  checked: settingsAdd.disableTremoloPlayback
+                  onCheckedChanged: settingsAdd.disableTremoloPlayback = checked
+                }
 
-                Row {
-                  width: parent.width
-                  spacing: 10
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "No tocar dinámicas" :
+                    "Don't play dynamics"
+                  checked: settingsAdd.disableDynamics
+                  onCheckedChanged: settingsAdd.disableDynamics = checked
+                }
 
-                  TextField {
-                    id: remoteUrlField
-                    width: parent.width - urlIndicator.width - parent.spacing
-                    text: remoteBaseUrl
-                    font.pixelSize: 10
-                    font.family: "monospace"
-                    selectByMouse: true
-                    onTextChanged: {
-                      remoteBaseUrl = text;
-                      settingsSoundFont.remoteBaseUrl = text;
-                      checkRemoteUrl();
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "No tocar articulaciones" :
+                    "Don't play articulations"
+                  checked: settingsAdd.disableArticulations
+                  onCheckedChanged: settingsAdd.disableArticulations = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "No tocar ornamentos (trinos, mordentes, etc.)" :
+                    "Don't play ornaments (trills, mordents, etc.)"
+                  checked: settingsAdd.disableOrnaments
+                  onCheckedChanged: settingsAdd.disableOrnaments = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: {
+                    if (hasSpannersAPI) {
+                      return isSpanish ?
+                        "No tocar reguladores" :
+                        "Don't play hairpins"
+                    } else {
+                      return isSpanish ?
+                        "No tocar reguladores (necesita selección)" :
+                        "Don't play hairpins (needs selection)"
                     }
                   }
-
-                  Text {
-                    id: urlIndicator
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: checkingRemoteUrl ? "⋯" : (remoteUrlValid ? "✓" : "✗")
-                    font.pixelSize: 16
-                    color: checkingRemoteUrl ? "blue" : (remoteUrlValid ? "green" : "red")
-                  }
-                }
-
-                Text {
-                  visible: !checkingRemoteUrl && !remoteUrlValid
-                  text: isSpanish ? "⚠ URL no válida o inaccesible" : "⚠ Invalid or inaccessible URL"
-                  font.pixelSize: 9
-                  color: "red"
-                  font.italic: true
+                  checked: settingsAdd.disableHairpins
+                  enabled: hasSpannersAPI || hasSelectionAdd
+                  onCheckedChanged: settingsAdd.disableHairpins = checked
                 }
               }
             }
+          }
+
+          // Note at bottom
+          Text {
+            text: isSpanish ?
+              "NOTA: Solo se procesarán instrumentos de bandurria y laúd" :
+              "NOTE: Will only process bandurria and laud instruments"
+            font.pixelSize: 12
+            font.italic: true
+            wrapMode: Text.WordWrap
+            width: parent.width - 30
+            color: systemPalette.windowText
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottomMargin: 10
           }
         }
+
+        // Tab 1: Remove Tremolo
+        Item {
+          id: removeTremoloContent
+
+          ScrollView {
+            anchors.fill: parent
+            clip: true
+
+            Column {
+              spacing: 15
+              width: removeTremoloContent.width - 40
+              anchors.horizontalCenter: parent.horizontalCenter
+              anchors.topMargin: 20
+              topPadding: 20
+              leftPadding: 20
+
+              Text {
+                text: isSpanish ?
+                  "Operaciones:" :
+                  "Operations to perform:"
+                font.bold: true
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+                width: parent.width
+                color: systemPalette.windowText
+              }
+
+              Column {
+                width: parent.width
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Eliminar símbolos de trémolo" :
+                    "Remove tremolo symbols"
+                  checked: settingsRemove.removeTremolos
+                  onCheckedChanged: settingsRemove.removeTremolos = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Restaurar velocidad de notas (valor predeterminado)" :
+                    "Restore note velocity (default value)"
+                  checked: settingsRemove.restoreVelocity
+                  onCheckedChanged: settingsRemove.restoreVelocity = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Restaurar reproducción de notas" :
+                    "Restore note playback"
+                  checked: settingsRemove.restoreNotePlayback
+                  onCheckedChanged: settingsRemove.restoreNotePlayback = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Restaurar reproducción de dinámicas" :
+                    "Restore dynamics playback"
+                  checked: settingsRemove.restoreDynamics
+                  onCheckedChanged: settingsRemove.restoreDynamics = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Restaurar reproducción de articulaciones" :
+                    "Restore articulations playback"
+                  checked: settingsRemove.restoreArticulations
+                  onCheckedChanged: settingsRemove.restoreArticulations = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: isSpanish ?
+                    "Restaurar reproducción de ornamentos" :
+                    "Restore ornaments playback"
+                  checked: settingsRemove.restoreOrnaments
+                  onCheckedChanged: settingsRemove.restoreOrnaments = checked
+                }
+
+                CheckBox {
+                  height: 22
+                  text: {
+                    if (hasSpannersAPI) {
+                      return isSpanish ?
+                        "Restaurar reproducción de reguladores" :
+                        "Restore hairpins playback"
+                    } else {
+                      return isSpanish ?
+                        "Restaurar reproducción de reguladores (necesita selección)" :
+                        "Restore hairpins playback (needs selection)"
+                    }
+                  }
+                  checked: settingsRemove.restoreHairpins
+                  enabled: hasSpannersAPI || hasSelectionRemove
+                  onCheckedChanged: settingsRemove.restoreHairpins = checked
+                }
+              }
+
+              Text {
+                text: isSpanish ?
+                  "Aplicar a:" :
+                  "Apply to:"
+                font.bold: true
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+                width: parent.width
+                color: systemPalette.windowText
+              }
+
+              Column {
+                width: parent.width
+
+                RadioButton {
+                  id: radioSelectionRemove
+                  height: 22
+                  text: isSpanish ?
+                    "Rango seleccionado" :
+                    "Selected range"
+                  enabled: hasSelectionRemove
+                  checked: hasSelectionRemove && useSelectionRemove
+                  onCheckedChanged: {
+                    if (checked) useSelectionRemove = true
+                  }
+                }
+
+                RadioButton {
+                  id: radioEntireScoreRemove
+                  height: 22
+                  text: isSpanish ?
+                    "Toda la partitura" :
+                    "Entire score"
+                  checked: !hasSelectionRemove || !useSelectionRemove
+                  onCheckedChanged: {
+                    if (checked) useSelectionRemove = false
+                  }
+                }
+              }
+            }
+          }
+
+          // Note at bottom
+          Text {
+            text: isSpanish ?
+              "NOTA: Solo se procesarán instrumentos de bandurria y laúd" :
+              "NOTE: Will only process bandurria and laud instruments"
+            font.pixelSize: 12
+            font.italic: true
+            wrapMode: Text.WordWrap
+            width: parent.width - 30
+            color: systemPalette.windowText
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottomMargin: 10
+          }
+        }
+
+        // Tab 2: SoundFont Check
+        Item {
+          Column {
+            spacing: 15
+            anchors.fill: parent
+            anchors.margins: 20
+
+            // Status section - List of Files (Plugin + SoundFonts)
+            Text {
+              text: isSpanish ? "Estado de archivos:" : "Files Status:"
+              font.bold: true
+              font.pixelSize: 13
+              color: systemPalette.windowText
+            }
+
+            Column {
+              width: parent.width
+              spacing: 5
+
+              // Plugin update status (first item)
+              Rectangle {
+                width: parent.width
+                height: 32
+                color: {
+                  if (pluginDownloadStatus.indexOf("✓") === 0) return "#d4edda";  // Verde claro
+                  if (pluginDownloadStatus.indexOf("✗") === 0) return "#f8d7da";  // Rojo claro
+                  if (downloadingPlugin) return "#d1ecf1";  // Azul claro
+                  if (pluginUpdateAvailable) return "#fff3cd";  // Naranja claro (actualización disponible)
+                  return "#d4edda";  // Verde claro (sin actualización = actualizado)
+                }
+                border.color: {
+                  if (pluginDownloadStatus.indexOf("✓") === 0) return "#4caf50";
+                  if (pluginDownloadStatus.indexOf("✗") === 0) return "#f44336";
+                  if (downloadingPlugin) return "#1976d2";
+                  if (pluginUpdateAvailable) return "#ff9800";
+                  return "#4caf50";  // Verde (sin actualización = actualizado)
+                }
+                border.width: 1
+                radius: 4
+
+                Row {
+                  anchors.fill: parent
+                  anchors.margins: 8
+                  spacing: 10
+
+                  Text {
+                    text: {
+                      if (pluginDownloadStatus.indexOf("✓") === 0) return "✓";
+                      if (pluginDownloadStatus.indexOf("✗") === 0) return "✗";
+                      if (downloadingPlugin) return "⏳";
+                      if (pluginUpdateAvailable) return "⚠";
+                      return "✓";  // Sin actualización = actualizado
+                    }
+                    font.pixelSize: 16
+                    font.bold: true
+                    color: {
+                      if (pluginDownloadStatus.indexOf("✓") === 0) return "#4caf50";
+                      if (pluginDownloadStatus.indexOf("✗") === 0) return "#f44336";
+                      if (downloadingPlugin) return "#1976d2";
+                      if (pluginUpdateAvailable) return "#ff9800";
+                      return "#4caf50";  // Verde (sin actualización = actualizado)
+                    }
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+
+                  Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+                    width: parent.width - 40
+
+                    Text {
+                      text: "PulsoPua.qml"
+                      font.pixelSize: 11
+                      font.bold: true
+                      color: systemPalette.windowText
+                    }
+
+                    Text {
+                      visible: downloadingPlugin
+                      height: visible ? implicitHeight : 0
+                      text: isSpanish ? "Descargando..." : "Downloading..."
+                      font.pixelSize: 9
+                      color: "#1976d2"
+                      font.italic: true
+                    }
+
+                    Text {
+                      visible: pluginDownloadStatus.indexOf("✓") === 0
+                      height: visible ? implicitHeight : 0
+                      text: isSpanish ? "Actualizado" : "Updated"
+                      font.pixelSize: 9
+                      color: "#4caf50"
+                      font.italic: true
+                    }
+
+                    Text {
+                      visible: pluginDownloadStatus.indexOf("✗") === 0
+                      height: visible ? implicitHeight : 0
+                      text: isSpanish ? "Error en descarga" : "Download error"
+                      font.pixelSize: 9
+                      color: "#f44336"
+                      font.italic: true
+                    }
+
+                    Text {
+                      visible: pluginUpdateAvailable && !downloadingPlugin && pluginDownloadStatus.length === 0
+                      height: visible ? implicitHeight : 0
+                      text: isSpanish ? "Actualización disponible" : "Update available"
+                      font.pixelSize: 9
+                      color: "#ff9800"
+                    }
+
+                    Text {
+                      visible: !pluginUpdateAvailable && !downloadingPlugin && pluginDownloadStatus.length === 0
+                      height: visible ? implicitHeight : 0
+                      text: isSpanish ? "Versión actual" : "Up to date"
+                      font.pixelSize: 9
+                      color: "#4caf50"
+                      font.italic: true
+                    }
+                  }
+                }
+              }
+
+              Repeater {
+                model: soundfontFiles
+
+                Rectangle {
+                  width: parent.width
+                  height: 40
+                  color: {
+                    if (!filesStatus[modelData]) return systemPalette.base;
+                    if (filesStatus[modelData].found) {
+                      return filesStatus[modelData].needsUpdate ?
+                          Qt.rgba(1.0, 0.6, 0.0, 0.15) : Qt.rgba(0.3, 0.8, 0.3, 0.15);
+                    }
+                    return Qt.rgba(1.0, 0.2, 0.2, 0.15);
+                  }
+                  border.color: filesStatus[modelData] && filesStatus[modelData].found ?
+                               (filesStatus[modelData].needsUpdate ? "#ff9800" : "#4caf50") :
+                               "#f44336"
+                  border.width: 2
+                  radius: 3
+
+                  Row {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 10
+
+                    Text {
+                      text: {
+                        if (!filesStatus[modelData]) return "?";
+                        if (filesStatus[modelData].found) {
+                          return filesStatus[modelData].needsUpdate ? "⚠" : "✓";
+                        }
+                        return "✗";
+                      }
+                      font.pixelSize: 16
+                      font.bold: true
+                      color: {
+                        if (!filesStatus[modelData]) return systemPalette.windowText;
+                        if (filesStatus[modelData].found) {
+                          return filesStatus[modelData].needsUpdate ? "#ff9800" : "#4caf50";
+                        }
+                        return "#f44336";
+                      }
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Column {
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: 2
+                      width: parent.width - 40
+
+                      Text {
+                        text: modelData
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: systemPalette.windowText
+                      }
+
+                      Text {
+                        visible: filesStatus[modelData] && filesStatus[modelData].found && filesStatus[modelData].needsUpdate
+                        text: {
+                          if (!filesStatus[modelData]) return "";
+                          var localMB = (filesStatus[modelData].localSize / 1024 / 1024).toFixed(2);
+                          var remoteMB = (filesStatus[modelData].remoteSize / 1024 / 1024).toFixed(2);
+                          return localMB + " MB → " + remoteMB + " MB";
+                        }
+                        font.pixelSize: 9
+                        color: "#ff9800"
+                      }
+
+                      Text {
+                        visible: filesStatus[modelData] && !filesStatus[modelData].found
+                        text: isSpanish ? "No instalado" : "Not installed"
+                        font.pixelSize: 9
+                        color: "#f44336"
+                        font.italic: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // SoundFonts directory location (editable)
+            Text {
+              text: isSpanish ? "Directorio SoundFonts:" : "SoundFonts Directory:"
+              font.bold: true
+              font.pixelSize: 12
+              color: systemPalette.windowText
+              width: parent.width
+            }
+
+            Column {
+              width: parent.width
+              spacing: 5
+
+              Row {
+                width: parent.width
+                spacing: 10
+
+                TextField {
+                  id: soundFontsDirField
+                  width: parent.width - existsIndicator.width - parent.spacing
+                  text: userSoundFontsDir
+                  font.pixelSize: 11
+                  font.family: "monospace"
+                  selectByMouse: true
+                  onTextChanged: {
+                    userSoundFontsDir = text;
+                    settingsSoundFont.soundFontsDirectory = text;
+                    checkAllSoundfonts();
+                    checkAllUpdates();
+                  }
+                }
+
+                Text {
+                  id: existsIndicator
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: {
+                    if (!directoryExists) return "?";
+                    var found = getFoundFilesCount();
+                    var total = soundfontFiles.length;
+                    return found + "/" + total;
+                  }
+                  font.pixelSize: 14
+                  font.bold: true
+                  color: {
+                    if (!directoryExists) return "orange";
+                    var found = getFoundFilesCount();
+                    var total = soundfontFiles.length;
+                    if (found === 0) return "red";
+                    if (found === total) return "green";
+                    return "orange";
+                  }
+                }
+              }
+
+              Text {
+                visible: !directoryExists
+                text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
+                font.pixelSize: 10
+                color: "orange"
+                font.italic: true
+              }
+            }
+
+            // Plugins directory location (editable)
+            Text {
+              text: isSpanish ? "Directorio Plugins:" : "Plugins Directory:"
+              font.bold: true
+              font.pixelSize: 12
+              color: systemPalette.windowText
+              width: parent.width
+            }
+
+            Column {
+              width: parent.width
+              spacing: 5
+
+              Row {
+                width: parent.width
+                spacing: 10
+
+                TextField {
+                  id: pluginsDirField
+                  width: parent.width - pluginsExistsIndicator.width - parent.spacing
+                  text: userPluginsDir
+                  font.pixelSize: 11
+                  font.family: "monospace"
+                  selectByMouse: true
+                  onTextChanged: {
+                    userPluginsDir = text;
+                    settingsSoundFont.pluginsDirectory = text;
+                  }
+                }
+
+                Text {
+                  id: pluginsExistsIndicator
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: {
+                    fileChecker.source = userPluginsDir;
+                    return fileChecker.exists() ? "✓" : "✗";
+                  }
+                  font.pixelSize: 18
+                  font.bold: true
+                  color: {
+                    fileChecker.source = userPluginsDir;
+                    return fileChecker.exists() ? "green" : "red";
+                  }
+                }
+              }
+
+              Text {
+                visible: {
+                  fileChecker.source = userPluginsDir;
+                  return !fileChecker.exists();
+                }
+                text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
+                font.pixelSize: 10
+                color: "orange"
+                font.italic: true
+              }
+            }
+
+            Text {
+              text: isSpanish ? "URL Base Remota para archivos:" : "Remote Base URL for files:"
+              font.bold: true
+              font.pixelSize: 12
+              color: systemPalette.windowText
+              width: parent.width
+            }
+
+            Column {
+              width: parent.width
+              spacing: 5
+
+              Row {
+                width: parent.width
+                spacing: 10
+
+                TextField {
+                  id: remoteUrlField
+                  width: parent.width - urlIndicator.width - parent.spacing
+                  text: remoteBaseUrl
+                  font.pixelSize: 11
+                  font.family: "monospace"
+                  selectByMouse: true
+                  onTextChanged: {
+                    remoteBaseUrl = text;
+                    settingsSoundFont.remoteBaseUrl = text;
+                    checkRemoteUrl();
+                  }
+                }
+
+                Text {
+                  id: urlIndicator
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: checkingRemoteUrl ? "⋯" : (remoteUrlValid ? "✓" : "✗")
+                  font.pixelSize: 18
+                  color: checkingRemoteUrl ? "blue" : (remoteUrlValid ? "green" : "red")
+                }
+              }
+
+              Text {
+                visible: !checkingRemoteUrl && !remoteUrlValid
+                text: isSpanish ? "⚠ URL no válida o inaccesible" : "⚠ Invalid or inaccessible URL"
+                font.pixelSize: 10
+                color: "red"
+                font.italic: true
+              }
+            }
+
+            // Download status
+            Rectangle {
+              visible: anyDownloading || downloadStatus.length > 0
+              width: parent.width
+              height: (downloadStatus.indexOf("Reiniciar") >= 0 || downloadStatus.indexOf("Restart") >= 0) ? 150 : 80
+              color: downloadStatus.indexOf("✓") === 0 ? "#e8f5e9" :
+                 downloadStatus.indexOf("✗") === 0 ? "#ffebee" : "#e3f2fd"
+              border.color: downloadStatus.indexOf("✓") === 0 ? "#4caf50" :
+                     downloadStatus.indexOf("✗") === 0 ? "#f44336" : "#2196f3"
+              border.width: 2
+              radius: 5
+
+              Column {
+                anchors.fill: parent
+                anchors.margins: 15
+                spacing: 5
+
+                Text {
+                  text: downloadStatus
+                  font.pixelSize: 11
+                  color: downloadStatus.indexOf("✓") === 0 ? "#2e7d32" :
+                     downloadStatus.indexOf("✗") === 0 ? "#c62828" : "#1976d2"
+                  width: parent.width
+                  wrapMode: Text.WordWrap
+                }
+
+                Text {
+                  visible: anyDownloading
+                  text: isSpanish ?
+                    "Descargando archivo binario..." :
+                    "Downloading binary file..."
+                  font.pixelSize: 10
+                  color: "#1976d2"
+                  width: parent.width
+                  wrapMode: Text.WordWrap
+                }
+              }
+            }
+
+            // Instructions section (if any files missing or need update)
+            Column {
+              visible: (getFoundFilesCount() < soundfontFiles.length || updateAvailable) && !anyDownloading && downloadStatus.length === 0
+              spacing: 10
+              width: parent.width
+
+              Text {
+                text: isSpanish ? "Instrucciones:" : "Instructions:"
+                font.bold: true
+                font.pixelSize: 13
+                color: systemPalette.windowText
+                width: parent.width
+              }
+
+              Text {
+                text: isSpanish ?
+                  "1. Verifica que el directorio SoundFonts sea correcto\n" +
+                  "2. Verifica que la URL remota sea correcta\n" +
+                  "3. Haz clic en 'Descargar e Instalar' para obtener los archivos\n" +
+                  "4. Después de instalar, reinicia MuseScore\n" +
+                  "5. En el Mixer (F10), selecciona el SoundFont deseado" :
+                  "1. Verify the SoundFonts directory is correct\n" +
+                  "2. Verify the remote URL is correct\n" +
+                  "3. Click 'Download and Install' to get the files\n" +
+                  "4. After installation, restart MuseScore\n" +
+                  "5. In the Mixer (F10), select the desired SoundFont"
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                width: parent.width
+                color: systemPalette.windowText
+              }
+            }
+
+          }
+        }
+      }
       }
 
       // Bottom bar with copyright and buttons
@@ -1552,89 +1443,93 @@ MuseScore {
           anchors.rightMargin: 20
           height: parent.height
 
-          // Add/Remove Tremolo buttons (visible for tabs 0 and 1)
-          Button {
-            visible: tabBar.currentIndex === 0 || tabBar.currentIndex === 1
-            text: isSpanish ? "Aplicar" : "Apply"
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: {
-              if (tabBar.currentIndex === 0) {
-                settingsAdd.savedDuration = minDurationValue;
-                processAddTremolo();
-              } else if (tabBar.currentIndex === 1) {
-                processRemoveTremolo();
-              }
+        // Add/Remove Tremolo buttons (visible for tabs 0 and 1)
+        Button {
+          visible: tabBar.currentIndex === 0 || tabBar.currentIndex === 1
+          text: isSpanish ? "Aplicar" : "Apply"
+          anchors.verticalCenter: parent.verticalCenter
+          onClicked: {
+            if (tabBar.currentIndex === 0) {
+              settingsAdd.savedDuration = minDurationValue;
+              processAddTremolo();
+            } else if (tabBar.currentIndex === 1) {
+              processRemoveTremolo();
             }
           }
+        }
 
-          // Apply & Close button (visible for tabs 0 and 1)
-          Button {
-            visible: tabBar.currentIndex === 0 || tabBar.currentIndex === 1
-            text: isSpanish ? "Aplicar y Cerrar" : "Apply && Close"
-            leftPadding: 15
-            rightPadding: 15
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: {
-              if (tabBar.currentIndex === 0) {
-                settingsAdd.savedDuration = minDurationValue;
-                processAddTremolo();
-              } else if (tabBar.currentIndex === 1) {
-                processRemoveTremolo();
-              }
-              quit();
+        // Apply & Close button (visible for tabs 0 and 1)
+        Button {
+          visible: tabBar.currentIndex === 0 || tabBar.currentIndex === 1
+          text: isSpanish ? "Aplicar y Cerrar" : "Apply && Close"
+          leftPadding: 15
+          rightPadding: 15
+          anchors.verticalCenter: parent.verticalCenter
+          onClicked: {
+            if (tabBar.currentIndex === 0) {
+              settingsAdd.savedDuration = minDurationValue;
+              processAddTremolo();
+            } else if (tabBar.currentIndex === 1) {
+              processRemoveTremolo();
             }
+            quit();
           }
+        }
 
-          // SoundFont buttons (visible for tab 2)
-          Button {
-            visible: tabBar.currentIndex === 2 &&
-                    ((getFoundFilesCount() < soundfontFiles.length || updateAvailable || pluginUpdateAvailable) &&
-                      !anyDownloading && !downloadingPlugin && !showRestartButton)
-            text: isSpanish ? "Descargar" : "Download"
-            leftPadding: 15
-            rightPadding: 15
-            highlighted: true
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: {
-              // Download both plugin and soundfonts in one action
-              downloadAllFiles();
+        // SoundFont buttons (visible for tab 2)
+        Button {
+          visible: tabBar.currentIndex === 2 &&
+                   ((getFoundFilesCount() < soundfontFiles.length || updateAvailable || pluginUpdateAvailable) &&
+                    !anyDownloading && !downloadingPlugin && !showRestartButton)
+          text: isSpanish ? "Descargar" : "Download"
+          leftPadding: 15
+          rightPadding: 15
+          highlighted: true
+          anchors.verticalCenter: parent.verticalCenter
+          onClicked: {
+            // Download plugin first if needed, then soundfonts
+            if (pluginUpdateAvailable) {
+              downloadPluginUpdate();
+            } else if (getFoundFilesCount() < soundfontFiles.length || updateAvailable) {
+              downloadSoundfont();
             }
           }
+        }
 
-          Button {
-            visible: tabBar.currentIndex === 2 && showRestartButton
-            text: isSpanish ? "Reiniciar MuseScore" : "Restart MuseScore"
-            leftPadding: 15
-            rightPadding: 15
-            highlighted: true
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: {
-              cmd("restart");
-            }
+        Button {
+          visible: tabBar.currentIndex === 2 && showRestartButton
+          text: isSpanish ? "Reiniciar MuseScore" : "Restart MuseScore"
+          leftPadding: 15
+          rightPadding: 15
+          highlighted: true
+          anchors.verticalCenter: parent.verticalCenter
+          onClicked: {
+            cmd("restart");
           }
+        }
 
-          Button {
-            visible: tabBar.currentIndex === 2
-            text: isSpanish ? "Verificar de Nuevo" : "Check Again"
-            leftPadding: 15
-            rightPadding: 15
-            enabled: !anyDownloading && !downloadingPlugin
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: {
-              checkAllSoundfonts();
-              checkAllUpdates();
-              checkPluginUpdate();
-            }
+        Button {
+          visible: tabBar.currentIndex === 2
+          text: isSpanish ? "Verificar de Nuevo" : "Check Again"
+          leftPadding: 15
+          rightPadding: 15
+          enabled: !anyDownloading && !downloadingPlugin
+          anchors.verticalCenter: parent.verticalCenter
+          onClicked: {
+            checkAllSoundfonts();
+            checkAllUpdates();
+            checkPluginUpdate();
           }
+        }
 
-          // Common Close button (always visible)
-          Button {
-            text: isSpanish ? "Cerrar" : "Close"
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked: {
-              quit();
-            }
+        // Common Close button (always visible)
+        Button {
+          text: isSpanish ? "Cerrar" : "Close"
+          anchors.verticalCenter: parent.verticalCenter
+          onClicked: {
+            quit();
           }
+        }
         }
       }
     }
@@ -2565,32 +2460,6 @@ MuseScore {
     process.startWithArgs("curl", ["--version"]);
   }
 
-  // New function: Download both plugin and soundfonts in one action
-  function downloadAllFiles() {
-    console.log("Starting downloadAllFiles...");
-
-    // First, download plugin if needed
-    if (pluginUpdateAvailable) {
-      console.log("Plugin update available, will download plugin first");
-      // Set up callback to download soundfonts after plugin
-      var originalCallback = downloadPluginUpdateComplete;
-      downloadPluginUpdateComplete = function() {
-        if (originalCallback) originalCallback();
-        // After plugin download, proceed with soundfonts
-        if (getFoundFilesCount() < soundfontFiles.length || updateAvailable) {
-          downloadSoundfont();
-        } else {
-          // No soundfonts to download
-          showRestartButton = true;
-        }
-      };
-      downloadPluginUpdate();
-    } else {
-      // No plugin update needed, go straight to soundfonts
-      downloadSoundfont();
-    }
-  }
-
   function downloadSoundfont() {
     if (anyDownloading) {
       return;
@@ -2602,16 +2471,11 @@ MuseScore {
       var filename = soundfontFiles[i];
       if (!filesStatus[filename].found || filesStatus[filename].needsUpdate) {
         filesToDownload.push(filename);
-        // Initialize download status for this file
-        filesStatus[filename].downloading = false;
-        filesStatus[filename].downloadComplete = false;
-        filesStatus[filename].downloadError = false;
       }
     }
 
     if (filesToDownload.length === 0) {
-      console.log("All soundfonts are up to date");
-      showRestartButton = true;
+      downloadStatus = isSpanish ? "✓ Todos los archivos están actualizados" : "✓ All files are up to date";
       return;
     }
 
@@ -2640,6 +2504,11 @@ MuseScore {
     if (downloadedCount >= filesToDownload.length) {
       // All files downloaded
       anyDownloading = false;
+      downloadStatus = isSpanish ?
+        "✓ Todos los archivos instalados correctamente!\n\n" +
+        "Haz clic en 'Reiniciar MuseScore' para usar los nuevos soundfonts." :
+        "✓ All files installed successfully!\n\n" +
+        "Click 'Restart MuseScore' to use the new soundfonts.";
       showRestartButton = true;
       console.log("All downloads complete!");
 
@@ -2652,13 +2521,12 @@ MuseScore {
     currentDownloadFile = filesToDownload[downloadedCount];
     anyDownloading = true;
 
-    // Set individual file status to downloading
-    filesStatus[currentDownloadFile].downloading = true;
-    filesStatus[currentDownloadFile].downloadComplete = false;
-    filesStatus[currentDownloadFile].downloadError = false;
-    filesStatusChanged();
+    var progressText = "(" + (downloadedCount + 1) + "/" + totalToDownload + ")";
+    downloadStatus = isSpanish ?
+      "Descargando " + currentDownloadFile + " " + progressText + "..." :
+      "Downloading " + currentDownloadFile + " " + progressText + "...";
 
-    console.log("Starting download: " + currentDownloadFile + " (" + (downloadedCount + 1) + "/" + totalToDownload + ")");
+    console.log("Starting download: " + currentDownloadFile);
 
     // Prefer writeBinary() if available (MuseScore 4.5+), otherwise use curl
     if (writeBinaryAvailable) {
@@ -2702,9 +2570,6 @@ MuseScore {
           filesStatus[filename].found = true;
           filesStatus[filename].localSize = buffer.length;
           filesStatus[filename].needsUpdate = false;
-          filesStatus[filename].downloading = false;
-          filesStatus[filename].downloadComplete = true;
-          filesStatus[filename].downloadError = false;
           filesStatusChanged();
 
           // Move to next file
@@ -2712,28 +2577,27 @@ MuseScore {
           downloadNextFile();
         } else {
           anyDownloading = false;
-          filesStatus[filename].downloading = false;
-          filesStatus[filename].downloadComplete = false;
-          filesStatus[filename].downloadError = true;
-          filesStatusChanged();
+          downloadStatus = isSpanish ?
+            "✗ Error: " + filename + " no se pudo guardar" :
+            "✗ Error: " + filename + " could not be saved";
           console.log("Error: Installation failed for " + filename);
         }
       } else {
         anyDownloading = false;
-        filesStatus[filename].downloading = false;
-        filesStatus[filename].downloadComplete = false;
-        filesStatus[filename].downloadError = true;
-        filesStatusChanged();
+        downloadStatus = isSpanish ?
+          "✗ Error de descarga (HTTP " + xhr.status + ")\n" +
+          "Archivo: " + filename :
+          "✗ Download error (HTTP " + xhr.status + ")\n" +
+          "File: " + filename;
         console.log("Download failed for " + filename + ". HTTP status: " + xhr.status);
       }
     };
 
     xhr.onerror = function() {
       anyDownloading = false;
-      filesStatus[filename].downloading = false;
-      filesStatus[filename].downloadComplete = false;
-      filesStatus[filename].downloadError = true;
-      filesStatusChanged();
+      downloadStatus = isSpanish ?
+        "✗ Error de conexión descargando " + filename :
+        "✗ Connection error downloading " + filename;
       console.log("Network error downloading " + filename);
     };
 
@@ -2764,9 +2628,6 @@ MuseScore {
           filesStatus[filename].found = true;
           filesStatus[filename].localSize = localSize;
           filesStatus[filename].needsUpdate = false;
-          filesStatus[filename].downloading = false;
-          filesStatus[filename].downloadComplete = true;
-          filesStatus[filename].downloadError = false;
           filesStatusChanged();
 
           // Move to next file
@@ -2774,20 +2635,20 @@ MuseScore {
           downloadNextFile();
         } else {
           anyDownloading = false;
-          filesStatus[filename].downloading = false;
-          filesStatus[filename].downloadComplete = false;
-          filesStatus[filename].downloadError = true;
-          filesStatusChanged();
+          downloadStatus = isSpanish ?
+            "✗ Error: " + filename + " no se pudo guardar" :
+            "✗ Error: " + filename + " could not be saved";
           console.log("Error: File does not exist after download");
         }
       } else {
         var output = process.readAllStandardOutput();
         console.log("Download failed for " + filename + ". Output: " + output);
         anyDownloading = false;
-        filesStatus[filename].downloading = false;
-        filesStatus[filename].downloadComplete = false;
-        filesStatus[filename].downloadError = true;
-        filesStatusChanged();
+        downloadStatus = isSpanish ?
+          "✗ Error de descarga (código " + exitCode + ")\n" +
+          "Archivo: " + filename :
+          "✗ Download error (code " + exitCode + ")\n" +
+          "File: " + filename;
       }
     });
 
@@ -2899,14 +2760,13 @@ MuseScore {
         if (newSize > 0) {
           pluginUpdateAvailable = false;
           pluginDownloadStatus = isSpanish ?
-            "✓ Plugin actualizado correctamente" :
-            "✓ Plugin updated successfully";
+            "✓ Plugin actualizado correctamente\n" +
+            "Por favor, cierra y vuelve a abrir el plugin para usar la nueva versión.\n" +
+            "Copia de seguridad guardada en: PulsoPua.qml.backup" :
+            "✓ Plugin updated successfully\n" +
+            "Please close and reopen the plugin to use the new version.\n" +
+            "Backup saved at: PulsoPua.qml.backup";
           console.log("Plugin updated successfully");
-
-          // Call completion callback if set
-          if (downloadPluginUpdateComplete) {
-            downloadPluginUpdateComplete();
-          }
         } else {
           pluginDownloadStatus = isSpanish ?
             "✗ Error: El plugin no se pudo guardar" :
