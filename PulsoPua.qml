@@ -8,7 +8,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.1"
+    version: "2.0.2"
     pluginType: "dialog"
     width: 650
     height: 700
@@ -769,15 +769,8 @@ MuseScore {
 
                                     CheckBox {
                                         height: 22
-                                        text: {
-                                            if (hasSpannersAPI) {
-                                                return isSpanish ? "No tocar reguladores" : "Don't play hairpins";
-                                            } else {
-                                                return isSpanish ? "No tocar reguladores (necesita selección)" : "Don't play hairpins (needs selection)";
-                                            }
-                                        }
+                                        text: isSpanish ? "No tocar reguladores" : "Don't play hairpins"
                                         checked: settingsAdd.disableHairpins
-                                        enabled: hasSpannersAPI || hasSelectionAdd
                                         onCheckedChanged: settingsAdd.disableHairpins = checked
                                     }
                                 }
@@ -870,15 +863,8 @@ MuseScore {
 
                                     CheckBox {
                                         height: 22
-                                        text: {
-                                            if (hasSpannersAPI) {
-                                                return isSpanish ? "Restaurar reproducción de reguladores" : "Restore hairpins playback";
-                                            } else {
-                                                return isSpanish ? "Restaurar reproducción de reguladores (necesita selección)" : "Restore hairpins playback (needs selection)";
-                                            }
-                                        }
+                                        text: isSpanish ? "Restaurar reproducción de reguladores" : "Restore hairpins playback"
                                         checked: settingsRemove.restoreHairpins
-                                        enabled: hasSpannersAPI || hasSelectionRemove
                                         onCheckedChanged: settingsRemove.restoreHairpins = checked
                                     }
                                 }
@@ -1005,28 +991,27 @@ MuseScore {
                                                     // Plugin siempre está "found" localmente, soundfonts no
                                                     return isPlugin ? "#d4edda" : "#f8d7da";
                                                 }
-                                            border.color: {
-                                                var _ = filesStatusRevision;  // Force dependency on revision counter
-                                                if (!filesStatus[modelData])
-                                                    return "#ccc";
-                                                var status = filesStatus[modelData];
-                                                var isPlugin = (modelData === pluginFilename);
+                                                border.color: {
+                                                    var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                    if (!filesStatus[modelData])
+                                                        return "#ccc";
+                                                    var status = filesStatus[modelData];
+                                                    var isPlugin = (modelData === pluginFilename);
 
-                                                if (status.downloading)
-                                                    return "#1976d2";
-                                                if (status.downloadComplete)
-                                                    return "#4caf50";
-                                                if (status.downloadError)
-                                                    return "#f44336";
+                                                    if (status.downloading)
+                                                        return "#1976d2";
+                                                    if (status.downloadComplete)
+                                                        return "#4caf50";
+                                                    if (status.downloadError)
+                                                        return "#f44336";
 
-                                                if (status.found) {
-                                                    return status.needsUpdate ? "#ff9800" : "#4caf50";
+                                                    if (status.found) {
+                                                        return status.needsUpdate ? "#ff9800" : "#4caf50";
+                                                    }
+                                                    return isPlugin ? "#4caf50" : "#f44336";
                                                 }
-                                                return isPlugin ? "#4caf50" : "#f44336";
-                                            }
-                                            border.width: 1
-                                            radius: 4
-
+                                                border.width: 1
+                                                radius: 4
                                             Row {
                                                 anchors.fill: parent
                                                 anchors.margins: 8
@@ -1560,22 +1545,43 @@ MuseScore {
 
         var useSelectionRange = hasSelectionAdd && useSelectionAdd;
 
-        // CRITICAL: Collect hairpins BEFORE startCmd() because selection.elements
-        // is only populated when NOT inside a cmd transaction
-        // NOTE: This is only needed when curScore.spanners is NOT available
-        var preCollectedHairpins = [];
-        if (settingsAdd.disableHairpins && !hasSpannersAPI && hasSelectionAdd) {
-            console.log("Pre-collecting hairpins from selection...");
-            var selection = curScore.selection;
-            var elements = selection.elements;
-            for (var i = 0; i < elements.length; i++) {
-                var element = elements[i];
-                // HairpinSegment has type 69
-                if (element.type === 69 || element.name === "HairpinSegment") {
-                    preCollectedHairpins.push(element);
+        // Build unified spanners cache (emulates curScore.spanners API when not available)
+        var spannersCache = { spanners: [] };
+        if (settingsAdd.disableHairpins) {
+            if (hasSpannersAPI) {
+                spannersCache.spanners = curScore.spanners;
+            } else {
+                // If no selection, select all to access hairpins
+                if (!useSelectionRange) {
+                    curScore.startCmd();
+                    curScore.selection.selectRange(0, curScore.lastSegment.tick + 1, 0, curScore.nstaves);
+                    curScore.endCmd();
                 }
+
+                var elements = curScore.selection.elements;
+                var prevSpanner = null;
+
+                for (var i = 0; i < elements.length; i++) {
+                    var e = elements[i];
+                    if (e.type === Element.HAIRPIN_SEGMENT) {
+                        var spanner = e.spanner;
+                        var isDuplicate = prevSpanner && spanner.is(prevSpanner);
+                        if (!isDuplicate) {
+                            spannersCache.spanners.push(spanner);
+                        }
+                        prevSpanner = spanner;
+                    }
+                }
+
+                // Clear selection only if we created it
+                if (!useSelectionRange) {
+                    curScore.startCmd();
+                    curScore.selection.clear();
+                    curScore.endCmd();
+                }
+
+                console.log("Built spanners cache with " + spannersCache.spanners.length + " hairpins");
             }
-            console.log("Pre-collected " + preCollectedHairpins.length + " hairpins");
         }
 
         curScore.startCmd();
@@ -1585,20 +1591,19 @@ MuseScore {
             var processedCount = 0;
             var hairpinsDisabled = 0;
 
+            // Get selection bounds
             var startTick, endTick;
             if (useSelectionRange) {
-                console.log("Processing selected range only");
                 cursor.rewind(Cursor.SELECTION_START);
                 startTick = cursor.segment ? cursor.segment.tick : 0;
                 cursor.rewind(Cursor.SELECTION_END);
                 endTick = cursor.segment ? cursor.segment.tick : curScore.lastSegment.tick + 1;
+                console.log("Processing selected range: tick " + startTick + " to " + endTick);
             } else {
-                console.log("Processing entire score");
                 startTick = 0;
                 endTick = curScore.lastSegment.tick + 1;
+                console.log("Processing entire score: tick " + startTick + " to " + endTick);
             }
-
-            console.log("Processing range: tick " + startTick + " to " + endTick);
 
             // Build list of bandurria/laúd staff indices
             var bandurriaLaudStaves = [];
@@ -1742,61 +1747,31 @@ MuseScore {
                 }
             }
 
-            // Process hairpins - two different approaches depending on API availability
-            if (settingsAdd.disableHairpins) {
-                if (hasSpannersAPI) {
-                    // Path 1: Use curScore.spanners API (custom build)
-                    console.log("Using curScore.spanners API to disable hairpins...");
+            // Process hairpins using unified spannersCache
+            if (settingsAdd.disableHairpins && spannersCache.spanners.length > 0) {
+                console.log("Processing " + spannersCache.spanners.length + " spanners...");
 
-                    if (curScore.spanners && curScore.spanners.length > 0) {
-                        for (var i = 0; i < curScore.spanners.length; i++) {
-                            var spanner = curScore.spanners[i];
+                for (var i = 0; i < spannersCache.spanners.length; i++) {
+                    var spanner = spannersCache.spanners[i];
 
-                            if (spanner.type === Element.HAIRPIN) {
-                                // Check if hairpin's track belongs to a bandurria/laúd staff
-                                var spannerStaff = Math.floor(spanner.track / 4);
-                                if (bandurriaLaudStaves.indexOf(spannerStaff) === -1)
-                                    continue;
+                    // Only process hairpins
+                    if (spanner.type !== Element.HAIRPIN) continue;
 
-                                // Check if hairpin is in the selected range
-                                if (useSelectionRange) {
-                                    var spannerTick = spanner.tick;
-                                    if (spannerTick < startTick || spannerTick >= endTick)
-                                        continue;
-                                }
+                    // Check if hairpin's track belongs to a bandurria/laúd staff
+                    var spannerStaff = Math.floor(spanner.track / 4);
+                    if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
 
-                                console.log("Disabling hairpin at tick " + spanner.tick);
-                                spanner.play = false;
-                                hairpinsDisabled++;
-                            }
-                        }
-                        console.log("Disabled " + hairpinsDisabled + " hairpins using spanners API");
-                    }
-                } else if (preCollectedHairpins.length > 0) {
-                    // Path 2: Use pre-collected hairpins from selection (official MuseScore)
-                    console.log("Disabling " + preCollectedHairpins.length + " pre-collected hairpins from selection...");
-
-                    for (var h = 0; h < preCollectedHairpins.length; h++) {
-                        var hairpin = preCollectedHairpins[h];
-
-                        // Filter: Only process hairpins that belong to bandurria/laúd staves
-                        if (hairpin.track !== undefined) {
-                            var hairpinStaff = Math.floor(hairpin.track / 4);
-                            if (bandurriaLaudStaves.indexOf(hairpinStaff) === -1) {
-                                console.log("Skipping hairpin on staff " + hairpinStaff + " (not bandurria/laúd)");
-                                continue;
-                            }
-                        }
-
-                        if (hairpin.play !== undefined) {
-                            hairpin.play = false;
-                            hairpinsDisabled++;
-                            console.log("Disabled hairpin on staff " + Math.floor(hairpin.track / 4));
-                        }
+                    // Check if hairpin is in the selected range
+                    if (useSelectionRange) {
+                        var spannerTick = spanner.spannerTick ? spanner.spannerTick.ticks : spanner.tick;
+                        if (spannerTick < startTick || spannerTick >= endTick) continue;
                     }
 
-                    console.log("Disabled " + hairpinsDisabled + " hairpins (filtered for bandurria/laúd only)");
+                    spanner.play = false;
+                    hairpinsDisabled++;
                 }
+
+                console.log("Disabled " + hairpinsDisabled + " hairpins");
             }
 
             console.log("Processed " + processedCount + " chords, disabled " + hairpinsDisabled + " hairpins");
@@ -1815,22 +1790,43 @@ MuseScore {
 
         var useSelectionRange = hasSelectionRemove && useSelectionRemove;
 
-        // CRITICAL: Collect hairpins BEFORE startCmd() because selection.elements
-        // is only populated when NOT inside a cmd transaction
-        // NOTE: This is only needed when curScore.spanners is NOT available
-        var preCollectedHairpins = [];
-        if (settingsRemove.restoreHairpins && !hasSpannersAPI && hasSelectionRemove) {
-            console.log("Pre-collecting hairpins from selection...");
-            var selection = curScore.selection;
-            var elements = selection.elements;
-            for (var i = 0; i < elements.length; i++) {
-                var element = elements[i];
-                // HairpinSegment has type 69
-                if (element.type === 69 || element.name === "HairpinSegment") {
-                    preCollectedHairpins.push(element);
+        // Build unified spanners cache (emulates curScore.spanners API when not available)
+        var spannersCache = { spanners: [] };
+        if (settingsRemove.restoreHairpins) {
+            if (hasSpannersAPI) {
+                spannersCache.spanners = curScore.spanners;
+            } else {
+                // If no selection, select all to access hairpins
+                if (!useSelectionRange) {
+                    curScore.startCmd();
+                    curScore.selection.selectRange(0, curScore.lastSegment.tick + 1, 0, curScore.nstaves);
+                    curScore.endCmd();
                 }
+
+                var elements = curScore.selection.elements;
+                var prevSpanner = null;
+
+                for (var i = 0; i < elements.length; i++) {
+                    var e = elements[i];
+                    if (e.type === Element.HAIRPIN_SEGMENT) {
+                        var spanner = e.spanner;
+                        var isDuplicate = prevSpanner && spanner.is(prevSpanner);
+                        if (!isDuplicate) {
+                            spannersCache.spanners.push(spanner);
+                        }
+                        prevSpanner = spanner;
+                    }
+                }
+
+                // Clear selection only if we created it
+                if (!useSelectionRange) {
+                    curScore.startCmd();
+                    curScore.selection.clear();
+                    curScore.endCmd();
+                }
+
+                console.log("Built spanners cache with " + spannersCache.spanners.length + " hairpins");
             }
-            console.log("Pre-collected " + preCollectedHairpins.length + " hairpins");
         }
 
         curScore.startCmd();
@@ -1843,21 +1839,19 @@ MuseScore {
             var articulationsRestored = 0;
             var hairpinsRestored = 0;
 
+            // Get selection bounds
             var startTick, endTick;
-
             if (useSelectionRange) {
-                console.log("Processing selected range only");
                 cursor.rewind(Cursor.SELECTION_START);
                 startTick = cursor.segment ? cursor.segment.tick : 0;
                 cursor.rewind(Cursor.SELECTION_END);
                 endTick = cursor.segment ? cursor.segment.tick : curScore.lastSegment.tick + 1;
+                console.log("Processing selected range: tick " + startTick + " to " + endTick);
             } else {
-                console.log("Processing entire score");
                 startTick = 0;
                 endTick = curScore.lastSegment.tick + 1;
+                console.log("Processing entire score: tick " + startTick + " to " + endTick);
             }
-
-            console.log("Processing range: tick " + startTick + " to " + endTick);
 
             // Build list of bandurria/laúd staff indices
             var bandurriaLaudStaves = [];
@@ -2021,61 +2015,31 @@ MuseScore {
                 }
             }
 
-            // Restore hairpins - two different approaches depending on API availability
-            if (settingsRemove.restoreHairpins) {
-                if (hasSpannersAPI) {
-                    // Path 1: Use curScore.spanners API (custom build)
-                    console.log("Using curScore.spanners API to restore hairpins...");
+            // Process hairpins using unified spannersCache
+            if (settingsRemove.restoreHairpins && spannersCache.spanners.length > 0) {
+                console.log("Processing " + spannersCache.spanners.length + " spanners...");
 
-                    if (curScore.spanners && curScore.spanners.length > 0) {
-                        for (var i = 0; i < curScore.spanners.length; i++) {
-                            var spanner = curScore.spanners[i];
+                for (var i = 0; i < spannersCache.spanners.length; i++) {
+                    var spanner = spannersCache.spanners[i];
 
-                            if (spanner.type === Element.HAIRPIN) {
-                                // Check if hairpin's track belongs to a bandurria/laúd staff
-                                var spannerStaff = Math.floor(spanner.track / 4);
-                                if (bandurriaLaudStaves.indexOf(spannerStaff) === -1)
-                                    continue;
+                    // Only process hairpins
+                    if (spanner.type !== Element.HAIRPIN) continue;
 
-                                // Check if hairpin is in the selected range
-                                if (useSelectionRange) {
-                                    var spannerTick = spanner.tick;
-                                    if (spannerTick < startTick || spannerTick >= endTick)
-                                        continue;
-                                }
+                    // Check if hairpin's track belongs to a bandurria/laúd staff
+                    var spannerStaff = Math.floor(spanner.track / 4);
+                    if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
 
-                                console.log("Restoring hairpin at tick " + spanner.tick);
-                                spanner.play = true;
-                                hairpinsRestored++;
-                            }
-                        }
-                        console.log("Restored " + hairpinsRestored + " hairpins using spanners API");
-                    }
-                } else if (preCollectedHairpins.length > 0) {
-                    // Path 2: Use pre-collected hairpins from selection (official MuseScore)
-                    console.log("Restoring " + preCollectedHairpins.length + " pre-collected hairpins from selection...");
-
-                    for (var h = 0; h < preCollectedHairpins.length; h++) {
-                        var hairpin = preCollectedHairpins[h];
-
-                        // Filter: Only process hairpins that belong to bandurria/laúd staves
-                        if (hairpin.track !== undefined) {
-                            var hairpinStaff = Math.floor(hairpin.track / 4);
-                            if (bandurriaLaudStaves.indexOf(hairpinStaff) === -1) {
-                                console.log("Skipping hairpin on staff " + hairpinStaff + " (not bandurria/laúd)");
-                                continue;
-                            }
-                        }
-
-                        if (hairpin.play !== undefined) {
-                            hairpin.play = true;
-                            hairpinsRestored++;
-                            console.log("Restored hairpin on staff " + Math.floor(hairpin.track / 4));
-                        }
+                    // Check if hairpin is in the selected range
+                    if (useSelectionRange) {
+                        var spannerTick = spanner.spannerTick ? spanner.spannerTick.ticks : spanner.tick;
+                        if (spannerTick < startTick || spannerTick >= endTick) continue;
                     }
 
-                    console.log("Restored " + hairpinsRestored + " hairpins (filtered for bandurria/laúd only)");
+                    spanner.play = true;
+                    hairpinsRestored++;
                 }
+
+                console.log("Restored " + hairpinsRestored + " hairpins");
             }
 
             console.log("Removed " + tremolosRemoved + " tremolo symbols");
