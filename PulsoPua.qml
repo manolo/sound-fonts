@@ -1,6 +1,7 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.3
+import Qt.labs.platform 1.0 as Platform
 import MuseScore 3.0
 import FileIO 3.0
 
@@ -8,7 +9,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.2"
+    version: "2.0.3"
     pluginType: "dialog"
     width: 650
     height: 700
@@ -256,7 +257,6 @@ MuseScore {
         // Check for updates for all files
         checkAllUpdates();
     }
-
     // Main UI
     Rectangle {
         anchors.fill: parent
@@ -1153,6 +1153,27 @@ MuseScore {
                                 width: parent.width
                                 spacing: 10
 
+                                // Folder dialogs for directory selection
+                                Platform.FolderDialog {
+                                    id: soundFontsFolderDialog
+                                    title: isSpanish ? "Seleccionar directorio de SoundFonts" : "Select SoundFonts Directory"
+                                    onAccepted: {
+                                        userSoundFontsDir = folder.toString().replace(/^file:\/\//, "");
+                                        settingsSoundFont.soundFontsDirectory = userSoundFontsDir;
+                                        checkAllSoundfonts();
+                                        checkAllUpdates();
+                                    }
+                                }
+
+                                Platform.FolderDialog {
+                                    id: pluginsFolderDialog
+                                    title: isSpanish ? "Seleccionar directorio de Plugins" : "Select Plugins Directory"
+                                    onAccepted: {
+                                        userPluginsDir = folder.toString().replace(/^file:\/\//, "");
+                                        settingsSoundFont.pluginsDirectory = userPluginsDir;
+                                    }
+                                }
+
                                 // SoundFonts directory location (editable)
                                 Text {
                                     text: isSpanish ? "Directorio SoundFonts:" : "SoundFonts Directory:"
@@ -1168,11 +1189,11 @@ MuseScore {
 
                                     Row {
                                         width: parent.width
-                                        spacing: 10
+                                        spacing: 5
 
                                         TextField {
                                             id: soundFontsDirField
-                                            width: parent.width - existsIndicator.width - parent.spacing
+                                            width: parent.width - browseSoundFontsBtn.width - existsIndicator.width - parent.spacing * 2
                                             text: userSoundFontsDir
                                             font.pixelSize: 11
                                             font.family: "monospace"
@@ -1185,16 +1206,25 @@ MuseScore {
                                             }
                                         }
 
+                                        Button {
+                                            id: browseSoundFontsBtn
+                                            text: "..."
+                                            width: 30
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            onClicked: {
+                                                if (userSoundFontsDir && userSoundFontsDir.length > 0) {
+                                                    soundFontsFolderDialog.currentFolder = userSoundFontsDir;
+                                                }
+                                                soundFontsFolderDialog.open();
+                                            }
+                                        }
+
                                         Text {
                                             id: existsIndicator
                                             anchors.verticalCenter: parent.verticalCenter
-                                            text: {
-                                                return directoryExists ? "✓" : "✗";
-                                            }
+                                            text: directoryExists ? "✓" : "✗"
                                             font.bold: true
-                                            color: {
-                                                return directoryExists ? "green" : "red";
-                                            }
+                                            color: directoryExists ? "green" : "red"
                                         }
                                     }
 
@@ -1222,11 +1252,11 @@ MuseScore {
 
                                     Row {
                                         width: parent.width
-                                        spacing: 10
+                                        spacing: 5
 
                                         TextField {
                                             id: pluginsDirField
-                                            width: parent.width - pluginsExistsIndicator.width - parent.spacing
+                                            width: parent.width - browsePluginsBtn.width - pluginsExistsIndicator.width - parent.spacing * 2
                                             text: userPluginsDir
                                             font.pixelSize: 11
                                             font.family: "monospace"
@@ -1234,6 +1264,19 @@ MuseScore {
                                             onTextChanged: {
                                                 userPluginsDir = text;
                                                 settingsSoundFont.pluginsDirectory = text;
+                                            }
+                                        }
+
+                                        Button {
+                                            id: browsePluginsBtn
+                                            text: "..."
+                                            width: 30
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            onClicked: {
+                                                if (userPluginsDir && userPluginsDir.length > 0) {
+                                                    pluginsFolderDialog.currentFolder = userPluginsDir;
+                                                }
+                                                pluginsFolderDialog.open();
                                             }
                                         }
 
