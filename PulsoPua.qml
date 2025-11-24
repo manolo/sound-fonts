@@ -8,7 +8,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-    version: "3.0"
+    version: "2.0.1"
     pluginType: "dialog"
     width: 650
     height: 700
@@ -73,7 +73,6 @@ MuseScore {
     // SoundFont Check properties
     property string userSoundFontsDir: ""
     property string userPluginsDir: ""
-    property string remoteBaseUrl: "https://github.com/manolo/sound-fonts/raw/refs/heads/main"
     property bool curlAvailable: false
     property bool checkingCurl: true
     property bool writeBinaryAvailable: false
@@ -81,18 +80,26 @@ MuseScore {
     property bool remoteUrlValid: false
     property bool checkingRemoteUrl: false
 
-    // Plugin update properties
-    property string pluginRemoteUrl: "https://github.com/manolo/sound-fonts/raw/refs/heads/main/PulsoPua.qml"
-    property bool pluginUpdateAvailable: false
-    property bool checkingPluginUpdate: false
-    property bool downloadingPlugin: false
-    property string pluginDownloadStatus: ""
+    // List of all managed files (plugin first, then soundfonts)
+    property var managedFiles: ["PulsoPua.qml", "Bandurria.sf2", "Bandurria-Con-Tremolo.sf2", "Laud.sf2", "Laud-Con-Tremolo.sf2"]
 
-    // List of soundfont files to manage
-    property var soundfontFiles: ["Bandurria.sf2", "Bandurria-Con-Tremolo.sf2", "Laud.sf2", "Laud-Con-Tremolo.sf2"]
+    // Remote base URL (same for all files)
+    property string remoteBaseUrl: "https://github.com/manolo/sound-fonts/raw/refs/heads/main"
 
-    // Status for each file: { found: bool, needsUpdate: bool, localSize: int, remoteSize: int, localDate: string, remoteDate: string }
+    // Plugin filename (first in managedFiles)
+    property string pluginFilename: managedFiles[0]
+
+    // Status for each file: { found: bool, needsUpdate: bool, localSize: int, remoteSize: int, localDate: string, remoteDate: string, downloading: bool, downloadComplete: bool, downloadError: bool }
     property var filesStatus: ({})
+
+    // Revision counter to force QML to detect changes in filesStatus nested properties
+    property int filesStatusRevision: 0
+
+    // Computed properties for backwards compatibility
+    property bool pluginUpdateAvailable: filesStatus[pluginFilename] ? filesStatus[pluginFilename].needsUpdate : false
+    property bool downloadingPlugin: filesStatus[pluginFilename] ? filesStatus[pluginFilename].downloading : false
+    property bool checkingPluginUpdate: false
+    property string pluginDownloadStatus: ""
 
     property bool anyDownloading: false
     property string currentDownloadFile: ""
@@ -183,16 +190,34 @@ MuseScore {
         useSelectionRemove = hasSelectionRemove;
 
         // Initialize SoundFont checking
-        // Initialize filesStatus
+        // Initialize filesStatus (includes plugin and soundfonts)
         filesStatus = {};
-        for (var i = 0; i < soundfontFiles.length; i++) {
-            filesStatus[soundfontFiles[i]] = {
+
+        // Add plugin to filesStatus
+        filesStatus[pluginFilename] = {
+            found: false,
+            needsUpdate: false,
+            localSize: 0,
+            remoteSize: 0,
+            localDate: "",
+            remoteDate: "",
+            downloading: false,
+            downloadComplete: false,
+            downloadError: false
+        };
+
+        // Add soundfonts to filesStatus
+        for (var i = 0; i < managedFiles.length; i++) {
+            filesStatus[managedFiles[i]] = {
                 found: false,
                 needsUpdate: false,
                 localSize: 0,
                 remoteSize: 0,
                 localDate: "",
-                remoteDate: ""
+                remoteDate: "",
+                downloading: false,
+                downloadComplete: false,
+                downloadError: false
             };
         }
 
@@ -290,9 +315,9 @@ MuseScore {
                     text: isSpanish ? "Actualizaciones" : "Updates"
                     height: 45
                     contentItem: Text {
-                        text: (updateAvailable || pluginUpdateAvailable || !soundfontFound ? "\u2717 " : "\u2713 ") + parent.text
+                        text: (hasUpdatesAvailable() ? "\u2717 " : "\u2713 ") + parent.text
                         font: parent.font
-                        color: (updateAvailable || pluginUpdateAvailable) ? "#f44336" : !soundfontFound ? "#ff9800" : "#4caf50"
+                        color: hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -912,6 +937,13 @@ MuseScore {
 
                     // Tab 2: SoundFont Check
                     Item {
+                        Component.onCompleted: {
+                            // Initial check when tab is created
+                            checkAllSoundfonts();
+                            checkAllUpdates();
+                            checkPluginUpdate();
+                        }
+
                         Column {
                             spacing: 15
                             anchors.fill: parent
@@ -925,439 +957,374 @@ MuseScore {
                                 color: systemPalette.windowText
                             }
 
-                            Column {
+                            Row {
                                 width: parent.width
-                                spacing: 5
+                                spacing: 10
 
-                                // Plugin update status (first item)
+                                // Left column: All managed files (plugin + soundfonts)
+                                Loader {
+                                    width: parent.width * 0.48
+                                    // Force reload when filesStatusRevision changes
+                                    property int trigger: filesStatusRevision
+                                    onTriggerChanged: {
+                                        // Force complete reload by setting source to empty then back
+                                        var src = sourceComponent;
+                                        sourceComponent = null;
+                                        sourceComponent = src;
+                                    }
+
+                                    sourceComponent: Column {
+                                        width: parent.width
+                                        spacing: 5
+
+                                        Repeater {
+                                            model: managedFiles
+
+                                            Rectangle {
+                                                width: parent.width
+                                                height: 32
+                                                color: {
+                                                    var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                    if (!filesStatus[modelData])
+                                                        return systemPalette.base;
+                                                    var status = filesStatus[modelData];
+                                                    var isPlugin = (modelData === pluginFilename);
+
+                                                    // Show download progress
+                                                    if (status.downloading)
+                                                        return "#d1ecf1";  // Azul claro
+                                                    if (status.downloadComplete)
+                                                        return "#d4edda";  // Verde claro
+                                                    if (status.downloadError)
+                                                        return "#f8d7da";  // Rojo claro
+
+                                                    // Normal status colors
+                                                    if (status.found) {
+                                                        return status.needsUpdate ? "#fff3cd" : "#d4edda";  // Naranja claro : Verde claro
+                                                    }
+                                                    // Plugin siempre está "found" localmente, soundfonts no
+                                                    return isPlugin ? "#d4edda" : "#f8d7da";
+                                                }
+                                            border.color: {
+                                                var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                if (!filesStatus[modelData])
+                                                    return "#ccc";
+                                                var status = filesStatus[modelData];
+                                                var isPlugin = (modelData === pluginFilename);
+
+                                                if (status.downloading)
+                                                    return "#1976d2";
+                                                if (status.downloadComplete)
+                                                    return "#4caf50";
+                                                if (status.downloadError)
+                                                    return "#f44336";
+
+                                                if (status.found) {
+                                                    return status.needsUpdate ? "#ff9800" : "#4caf50";
+                                                }
+                                                return isPlugin ? "#4caf50" : "#f44336";
+                                            }
+                                            border.width: 1
+                                            radius: 4
+
+                                            Row {
+                                                anchors.fill: parent
+                                                anchors.margins: 8
+                                                spacing: 10
+
+                                                Text {
+                                                    text: {
+                                                        var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                        if (!filesStatus[modelData])
+                                                            return "?";
+                                                        var status = filesStatus[modelData];
+                                                        var isPlugin = (modelData === pluginFilename);
+
+                                                        if (status.downloading)
+                                                            return "⏳";
+                                                        if (status.downloadComplete)
+                                                            return "✓";
+                                                        if (status.downloadError)
+                                                            return "✗";
+
+                                                        if (status.found) {
+                                                            return status.needsUpdate ? "⚠" : "✓";
+                                                        }
+                                                        return isPlugin ? "✓" : "✗";
+                                                    }
+                                                    font.pixelSize: 16
+                                                    font.bold: true
+                                                    color: {
+                                                        var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                        if (!filesStatus[modelData])
+                                                            return systemPalette.windowText;
+                                                        var status = filesStatus[modelData];
+                                                        var isPlugin = (modelData === pluginFilename);
+
+                                                        if (status.downloading)
+                                                            return "#1976d2";
+                                                        if (status.downloadComplete)
+                                                            return "#4caf50";
+                                                        if (status.downloadError)
+                                                            return "#f44336";
+
+                                                        if (status.found) {
+                                                            return status.needsUpdate ? "#ff9800" : "#4caf50";
+                                                        }
+                                                        return isPlugin ? "#4caf50" : "#f44336";
+                                                    }
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                }
+
+                                                Column {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    spacing: 2
+                                                    width: parent.width - 40
+
+                                                    Text {
+                                                        text: modelData
+                                                        font.pixelSize: 11
+                                                        font.bold: true
+                                                        color: systemPalette.windowText
+                                                    }
+
+                                                    Text {
+                                                        visible: {
+                                                            var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                            return filesStatus[modelData] ? (filesStatus[modelData].downloading === true) : false;
+                                                        }
+                                                        height: visible ? implicitHeight : 0
+                                                        text: isSpanish ? "Descargando..." : "Downloading..."
+                                                        font.pixelSize: 9
+                                                        color: "#1976d2"
+                                                        font.italic: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                }
+
+                                // Right column: Status and instructions area (unified)
                                 Rectangle {
-                                    width: parent.width
-                                    height: 32
+                                    visible: anyDownloading || downloadStatus.length > 0 || hasUpdatesAvailable()
+                                    width: parent.width * 0.48
+                                    height: 180
                                     color: {
-                                        if (pluginDownloadStatus.indexOf("✓") === 0)
-                                            return "#d4edda";  // Verde claro
-                                        if (pluginDownloadStatus.indexOf("✗") === 0)
-                                            return "#f8d7da";  // Rojo claro
-                                        if (downloadingPlugin)
-                                            return "#d1ecf1";  // Azul claro
-                                        if (pluginUpdateAvailable)
-                                            return "#fff3cd";  // Naranja claro (actualización disponible)
-                                        return "#d4edda";  // Verde claro (sin actualización = actualizado)
+                                        if (downloadStatus.length > 0) {
+                                            return downloadStatus.indexOf("✓") === 0 ? "#e8f5e9" : downloadStatus.indexOf("✗") === 0 ? "#ffebee" : "#e3f2fd";
+                                        }
+                                        return "#f5f5f5";  // Instructions background
                                     }
                                     border.color: {
-                                        if (pluginDownloadStatus.indexOf("✓") === 0)
-                                            return "#4caf50";
-                                        if (pluginDownloadStatus.indexOf("✗") === 0)
-                                            return "#f44336";
-                                        if (downloadingPlugin)
-                                            return "#1976d2";
-                                        if (pluginUpdateAvailable)
-                                            return "#ff9800";
-                                        return "#4caf50";  // Verde (sin actualización = actualizado)
+                                        if (downloadStatus.length > 0) {
+                                            return downloadStatus.indexOf("✓") === 0 ? "#4caf50" : downloadStatus.indexOf("✗") === 0 ? "#f44336" : "#2196f3";
+                                        }
+                                        return "#ccc";  // Instructions border
                                     }
-                                    border.width: 1
-                                    radius: 4
+                                    border.width: 2
+                                    radius: 5
 
-                                    Row {
+                                    Column {
                                         anchors.fill: parent
-                                        anchors.margins: 8
-                                        spacing: 10
+                                        anchors.margins: 15
+                                        spacing: 5
+
+                                        // Download status (when downloading or has status message)
+                                        Text {
+                                            visible: downloadStatus.length > 0
+                                            text: downloadStatus
+                                            font.pixelSize: 11
+                                            color: downloadStatus.indexOf("✓") === 0 ? "#2e7d32" : downloadStatus.indexOf("✗") === 0 ? "#c62828" : "#1976d2"
+                                            width: parent.width
+                                            wrapMode: Text.WordWrap
+                                        }
 
                                         Text {
-                                            text: {
-                                                if (pluginDownloadStatus.indexOf("✓") === 0)
-                                                    return "✓";
-                                                if (pluginDownloadStatus.indexOf("✗") === 0)
-                                                    return "✗";
-                                                if (downloadingPlugin)
-                                                    return "⏳";
-                                                if (pluginUpdateAvailable)
-                                                    return "⚠";
-                                                return "✓";  // Sin actualización = actualizado
-                                            }
-                                            font.pixelSize: 16
-                                            font.bold: true
-                                            color: {
-                                                if (pluginDownloadStatus.indexOf("✓") === 0)
-                                                    return "#4caf50";
-                                                if (pluginDownloadStatus.indexOf("✗") === 0)
-                                                    return "#f44336";
-                                                if (downloadingPlugin)
-                                                    return "#1976d2";
-                                                if (pluginUpdateAvailable)
-                                                    return "#ff9800";
-                                                return "#4caf50";  // Verde (sin actualización = actualizado)
-                                            }
-                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: anyDownloading
+                                            text: isSpanish ? "Descargando archivo binario..." : "Downloading binary file..."
+                                            font.pixelSize: 10
+                                            color: "#1976d2"
+                                            width: parent.width
+                                            wrapMode: Text.WordWrap
                                         }
 
-                                        Column {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 2
-                                            width: parent.width - 40
-
-                                            Text {
-                                                text: "PulsoPua.qml"
-                                                font.pixelSize: 11
-                                                font.bold: true
-                                                color: systemPalette.windowText
-                                            }
-
-                                            Text {
-                                                visible: downloadingPlugin
-                                                height: visible ? implicitHeight : 0
-                                                text: isSpanish ? "Descargando..." : "Downloading..."
-                                                font.pixelSize: 9
-                                                color: "#1976d2"
-                                                font.italic: true
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Repeater {
-                                    model: soundfontFiles
-
-                                    Rectangle {
-                                        width: parent.width
-                                        height: 32
-                                        color: {
-                                            if (!filesStatus[modelData])
-                                                return systemPalette.base;
-                                            var status = filesStatus[modelData];
-
-                                            // Show download progress
-                                            if (status.downloading)
-                                                return "#d1ecf1";  // Azul claro
-                                            if (status.downloadComplete)
-                                                return "#d4edda";  // Verde claro
-                                            if (status.downloadError)
-                                                return "#f8d7da";  // Rojo claro
-
-                                            // Normal status colors
-                                            if (status.found) {
-                                                return status.needsUpdate ? "#fff3cd" : "#d4edda";  // Naranja claro : Verde claro
-                                            }
-                                            return "#f8d7da";  // Rojo claro (no instalado)
-                                        }
-                                        border.color: {
-                                            if (!filesStatus[modelData])
-                                                return "#ccc";
-                                            var status = filesStatus[modelData];
-
-                                            if (status.downloading)
-                                                return "#1976d2";
-                                            if (status.downloadComplete)
-                                                return "#4caf50";
-                                            if (status.downloadError)
-                                                return "#f44336";
-
-                                            if (status.found) {
-                                                return status.needsUpdate ? "#ff9800" : "#4caf50";
-                                            }
-                                            return "#f44336";
-                                        }
-                                        border.width: 1
-                                        radius: 4
-
-                                        Row {
-                                            anchors.fill: parent
-                                            anchors.margins: 8
-                                            spacing: 10
-
-                                            Text {
-                                                text: {
-                                                    if (!filesStatus[modelData])
-                                                        return "?";
-                                                    var status = filesStatus[modelData];
-
-                                                    if (status.downloading)
-                                                        return "⏳";
-                                                    if (status.downloadComplete)
-                                                        return "✓";
-                                                    if (status.downloadError)
-                                                        return "✗";
-
-                                                    if (status.found) {
-                                                        return status.needsUpdate ? "⚠" : "✓";
-                                                    }
-                                                    return "✗";
-                                                }
-                                                font.pixelSize: 16
-                                                font.bold: true
-                                                color: {
-                                                    if (!filesStatus[modelData])
-                                                        return systemPalette.windowText;
-                                                    var status = filesStatus[modelData];
-
-                                                    if (status.downloading)
-                                                        return "#1976d2";
-                                                    if (status.downloadComplete)
-                                                        return "#4caf50";
-                                                    if (status.downloadError)
-                                                        return "#f44336";
-
-                                                    if (status.found) {
-                                                        return status.needsUpdate ? "#ff9800" : "#4caf50";
-                                                    }
-                                                    return "#f44336";
-                                                }
-                                                anchors.verticalCenter: parent.verticalCenter
-                                            }
-
-                                            Column {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                spacing: 2
-                                                width: parent.width - 40
-
-                                                Text {
-                                                    text: modelData
-                                                    font.pixelSize: 11
-                                                    font.bold: true
-                                                    color: systemPalette.windowText
-                                                }
-
-                                                Text {
-                                                    visible: filesStatus[modelData] && filesStatus[modelData].downloading === true
-                                                    height: visible ? implicitHeight : 0
-                                                    text: isSpanish ? "Descargando..." : "Downloading..."
-                                                    font.pixelSize: 9
-                                                    color: "#1976d2"
-                                                    font.italic: true
-                                                }
-                                            }
+                                        // Instructions (when files need update and not downloading)
+                                        Text {
+                                            visible: hasUpdatesAvailable() && !anyDownloading && downloadStatus.length === 0
+                                            text: isSpanish ? "1. Verifica que el directorio SoundFonts sea correcto\n2. Verifica que la URL remota sea correcta\n3. Haz clic en 'Descargar' para obtener los archivos\n4. Después de instalar, reinicia MuseScore\n5. En el Mixer (F10), selecciona el SoundFont deseado" : "1. Verify the SoundFonts directory is correct\n2. Verify the remote URL is correct\n3. Click 'Download' to get the files\n4. After installation, restart MuseScore\n5. In the Mixer (F10), select the desired SoundFont"
+                                            font.pixelSize: 11
+                                            wrapMode: Text.WordWrap
+                                            width: parent.width
+                                            color: systemPalette.windowText
                                         }
                                     }
                                 }
                             }
 
-                            // SoundFonts directory location (editable)
-                            Text {
-                                text: isSpanish ? "Directorio SoundFonts:" : "SoundFonts Directory:"
-                                font.bold: true
-                                font.pixelSize: 12
-                                color: systemPalette.windowText
-                                width: parent.width
-                            }
-
+                            // Configuration section below
                             Column {
                                 width: parent.width
-                                spacing: 5
+                                spacing: 10
 
-                                Row {
-                                    width: parent.width
-                                    spacing: 10
-
-                                    TextField {
-                                        id: soundFontsDirField
-                                        width: parent.width - existsIndicator.width - parent.spacing
-                                        text: userSoundFontsDir
-                                        font.pixelSize: 11
-                                        font.family: "monospace"
-                                        selectByMouse: true
-                                        onTextChanged: {
-                                            userSoundFontsDir = text;
-                                            settingsSoundFont.soundFontsDirectory = text;
-                                            checkAllSoundfonts();
-                                            checkAllUpdates();
-                                        }
-                                    }
-
-                                    Text {
-                                        id: existsIndicator
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: {
-                                            if (!directoryExists)
-                                                return "?";
-                                            var found = getFoundFilesCount();
-                                            var total = soundfontFiles.length;
-                                            return found + "/" + total;
-                                        }
-                                        font.pixelSize: 14
-                                        font.bold: true
-                                        color: {
-                                            if (!directoryExists)
-                                                return "orange";
-                                            var found = getFoundFilesCount();
-                                            var total = soundfontFiles.length;
-                                            if (found === 0)
-                                                return "red";
-                                            if (found === total)
-                                                return "green";
-                                            return "orange";
-                                        }
-                                    }
-                                }
-
+                                // SoundFonts directory location (editable)
                                 Text {
-                                    visible: !directoryExists
-                                    text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
-                                    font.pixelSize: 10
-                                    color: "orange"
-                                    font.italic: true
-                                }
-                            }
-
-                            // Plugins directory location (editable)
-                            Text {
-                                text: isSpanish ? "Directorio Plugins:" : "Plugins Directory:"
-                                font.bold: true
-                                font.pixelSize: 12
-                                color: systemPalette.windowText
-                                width: parent.width
-                            }
-
-                            Column {
-                                width: parent.width
-                                spacing: 5
-
-                                Row {
+                                    text: isSpanish ? "Directorio SoundFonts:" : "SoundFonts Directory:"
+                                    font.bold: true
+                                    font.pixelSize: 12
+                                    color: systemPalette.windowText
                                     width: parent.width
-                                    spacing: 10
-
-                                    TextField {
-                                        id: pluginsDirField
-                                        width: parent.width - pluginsExistsIndicator.width - parent.spacing
-                                        text: userPluginsDir
-                                        font.pixelSize: 11
-                                        font.family: "monospace"
-                                        selectByMouse: true
-                                        onTextChanged: {
-                                            userPluginsDir = text;
-                                            settingsSoundFont.pluginsDirectory = text;
-                                        }
-                                    }
-
-                                    Text {
-                                        id: pluginsExistsIndicator
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: {
-                                            fileChecker.source = userPluginsDir;
-                                            return fileChecker.exists() ? "✓" : "✗";
-                                        }
-                                        font.pixelSize: 18
-                                        font.bold: true
-                                        color: {
-                                            fileChecker.source = userPluginsDir;
-                                            return fileChecker.exists() ? "green" : "red";
-                                        }
-                                    }
                                 }
-
-                                Text {
-                                    visible: {
-                                        fileChecker.source = userPluginsDir;
-                                        return !fileChecker.exists();
-                                    }
-                                    text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
-                                    font.pixelSize: 10
-                                    color: "orange"
-                                    font.italic: true
-                                }
-                            }
-
-                            Text {
-                                text: isSpanish ? "URL Base Remota para archivos:" : "Remote Base URL for files:"
-                                font.bold: true
-                                font.pixelSize: 12
-                                color: systemPalette.windowText
-                                width: parent.width
-                            }
-
-                            Column {
-                                width: parent.width
-                                spacing: 5
-
-                                Row {
-                                    width: parent.width
-                                    spacing: 10
-
-                                    TextField {
-                                        id: remoteUrlField
-                                        width: parent.width - urlIndicator.width - parent.spacing
-                                        text: remoteBaseUrl
-                                        font.pixelSize: 11
-                                        font.family: "monospace"
-                                        selectByMouse: true
-                                        onTextChanged: {
-                                            remoteBaseUrl = text;
-                                            settingsSoundFont.remoteBaseUrl = text;
-                                            checkRemoteUrl();
-                                        }
-                                    }
-
-                                    Text {
-                                        id: urlIndicator
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: checkingRemoteUrl ? "⋯" : (remoteUrlValid ? "✓" : "✗")
-                                        font.pixelSize: 18
-                                        color: checkingRemoteUrl ? "blue" : (remoteUrlValid ? "green" : "red")
-                                    }
-                                }
-
-                                Text {
-                                    visible: !checkingRemoteUrl && !remoteUrlValid
-                                    text: isSpanish ? "⚠ URL no válida o inaccesible" : "⚠ Invalid or inaccessible URL"
-                                    font.pixelSize: 10
-                                    color: "red"
-                                    font.italic: true
-                                }
-                            }
-
-                            // Download status
-                            Rectangle {
-                                visible: anyDownloading || downloadStatus.length > 0
-                                width: parent.width
-                                height: (downloadStatus.indexOf("Reiniciar") >= 0 || downloadStatus.indexOf("Restart") >= 0) ? 150 : 80
-                                color: downloadStatus.indexOf("✓") === 0 ? "#e8f5e9" : downloadStatus.indexOf("✗") === 0 ? "#ffebee" : "#e3f2fd"
-                                border.color: downloadStatus.indexOf("✓") === 0 ? "#4caf50" : downloadStatus.indexOf("✗") === 0 ? "#f44336" : "#2196f3"
-                                border.width: 2
-                                radius: 5
 
                                 Column {
-                                    anchors.fill: parent
-                                    anchors.margins: 15
+                                    width: parent.width
                                     spacing: 5
 
-                                    Text {
-                                        text: downloadStatus
-                                        font.pixelSize: 11
-                                        color: downloadStatus.indexOf("✓") === 0 ? "#2e7d32" : downloadStatus.indexOf("✗") === 0 ? "#c62828" : "#1976d2"
+                                    Row {
                                         width: parent.width
-                                        wrapMode: Text.WordWrap
+                                        spacing: 10
+
+                                        TextField {
+                                            id: soundFontsDirField
+                                            width: parent.width - existsIndicator.width - parent.spacing
+                                            text: userSoundFontsDir
+                                            font.pixelSize: 11
+                                            font.family: "monospace"
+                                            selectByMouse: true
+                                            onTextChanged: {
+                                                userSoundFontsDir = text;
+                                                settingsSoundFont.soundFontsDirectory = text;
+                                                checkAllSoundfonts();
+                                                checkAllUpdates();
+                                            }
+                                        }
+
+                                        Text {
+                                            id: existsIndicator
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: {
+                                                return directoryExists ? "✓" : "✗";
+                                            }
+                                            font.bold: true
+                                            color: {
+                                                return directoryExists ? "green" : "red";
+                                            }
+                                        }
                                     }
 
                                     Text {
-                                        visible: anyDownloading
-                                        text: isSpanish ? "Descargando archivo binario..." : "Downloading binary file..."
+                                        visible: !directoryExists
+                                        text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
                                         font.pixelSize: 10
-                                        color: "#1976d2"
-                                        width: parent.width
-                                        wrapMode: Text.WordWrap
+                                        color: "orange"
+                                        font.italic: true
                                     }
                                 }
-                            }
 
-                            // Instructions section (if any files missing or need update)
-                            Column {
-                                visible: (getFoundFilesCount() < soundfontFiles.length || updateAvailable) && !anyDownloading && downloadStatus.length === 0
-                                spacing: 10
-                                width: parent.width
-
+                                // Plugins directory location (editable)
                                 Text {
-                                    text: isSpanish ? "Instrucciones:" : "Instructions:"
+                                    text: isSpanish ? "Directorio Plugins:" : "Plugins Directory:"
                                     font.bold: true
-                                    font.pixelSize: 13
+                                    font.pixelSize: 12
                                     color: systemPalette.windowText
                                     width: parent.width
                                 }
 
-                                Text {
-                                    text: isSpanish ? "1. Verifica que el directorio SoundFonts sea correcto\n" + "2. Verifica que la URL remota sea correcta\n" + "3. Haz clic en 'Descargar e Instalar' para obtener los archivos\n" + "4. Después de instalar, reinicia MuseScore\n" + "5. En el Mixer (F10), selecciona el SoundFont deseado" : "1. Verify the SoundFonts directory is correct\n" + "2. Verify the remote URL is correct\n" + "3. Click 'Download and Install' to get the files\n" + "4. After installation, restart MuseScore\n" + "5. In the Mixer (F10), select the desired SoundFont"
-                                    font.pixelSize: 11
-                                    wrapMode: Text.WordWrap
+                                Column {
                                     width: parent.width
+                                    spacing: 5
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 10
+
+                                        TextField {
+                                            id: pluginsDirField
+                                            width: parent.width - pluginsExistsIndicator.width - parent.spacing
+                                            text: userPluginsDir
+                                            font.pixelSize: 11
+                                            font.family: "monospace"
+                                            selectByMouse: true
+                                            onTextChanged: {
+                                                userPluginsDir = text;
+                                                settingsSoundFont.pluginsDirectory = text;
+                                            }
+                                        }
+
+                                        Text {
+                                            id: pluginsExistsIndicator
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: {
+                                                fileChecker.source = userPluginsDir;
+                                                return fileChecker.exists() ? "✓" : "✗";
+                                            }
+                                            font.bold: true
+                                            color: {
+                                                fileChecker.source = userPluginsDir;
+                                                return fileChecker.exists() ? "green" : "red";
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        visible: {
+                                            fileChecker.source = userPluginsDir;
+                                            return !fileChecker.exists();
+                                        }
+                                        text: isSpanish ? "⚠ Directorio no encontrado" : "⚠ Directory not found"
+                                        font.pixelSize: 10
+                                        color: "orange"
+                                        font.italic: true
+                                    }
+                                }
+
+                                Text {
+                                    text: isSpanish ? "URL Base Remota para archivos:" : "Remote Base URL for files:"
+                                    font.bold: true
+                                    font.pixelSize: 12
                                     color: systemPalette.windowText
+                                    width: parent.width
+                                }
+
+                                Column {
+                                    width: parent.width
+                                    spacing: 5
+
+                                    Row {
+                                        width: parent.width
+                                        spacing: 10
+
+                                        TextField {
+                                            id: remoteUrlField
+                                            width: parent.width - urlIndicator.width - parent.spacing
+                                            text: remoteBaseUrl
+                                            font.pixelSize: 11
+                                            font.family: "monospace"
+                                            selectByMouse: true
+                                            onTextChanged: {
+                                                remoteBaseUrl = text;
+                                                settingsSoundFont.remoteBaseUrl = text;
+                                                checkRemoteUrl();
+                                            }
+                                        }
+
+                                        Text {
+                                            id: urlIndicator
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: checkingRemoteUrl ? "⋯" : (remoteUrlValid ? "✓" : "✗")
+                                            font.bold: true
+                                            color: checkingRemoteUrl ? "blue" : (remoteUrlValid ? "green" : "red")
+                                        }
+                                    }
+
+                                    Text {
+                                        visible: !checkingRemoteUrl && !remoteUrlValid
+                                        text: isSpanish ? "⚠ URL no válida o inaccesible" : "⚠ Invalid or inaccessible URL"
+                                        font.pixelSize: 10
+                                        color: "red"
+                                        font.italic: true
+                                    }
                                 }
                             }
                         }
@@ -1372,7 +1339,7 @@ MuseScore {
 
                 // Copyright aligned left
                 Text {
-                    text: "\u00A9 2025 - Manolo Carrasco (do2tis)"
+                    text: "\u00A9 2025 - Manolo Carrasco (do2tis) - v" + version
                     font.pixelSize: 11
                     color: systemPalette.windowText
                     anchors.left: parent.left
@@ -1420,21 +1387,17 @@ MuseScore {
                         }
                     }
 
-                    // SoundFont buttons (visible for tab 2)
+                    // Download button (visible for tab 2)
                     Button {
-                        visible: tabBar.currentIndex === 2 && ((getFoundFilesCount() < soundfontFiles.length || updateAvailable || pluginUpdateAvailable) && !anyDownloading && !downloadingPlugin && !showRestartButton)
+                        visible: tabBar.currentIndex === 2 && hasUpdatesAvailable() && !anyDownloading && !showRestartButton
                         text: isSpanish ? "Descargar" : "Download"
                         leftPadding: 15
                         rightPadding: 15
                         highlighted: true
                         anchors.verticalCenter: parent.verticalCenter
                         onClicked: {
-                            // Download plugin first if needed, then soundfonts
-                            if (pluginUpdateAvailable) {
-                                downloadPluginUpdate();
-                            } else if (getFoundFilesCount() < soundfontFiles.length || updateAvailable) {
-                                downloadSoundfont();
-                            }
+                            // Download all files that need update (plugin + soundfonts)
+                            downloadFiles(managedFiles);
                         }
                     }
 
@@ -1447,20 +1410,6 @@ MuseScore {
                         anchors.verticalCenter: parent.verticalCenter
                         onClicked: {
                             cmd("restart");
-                        }
-                    }
-
-                    Button {
-                        visible: tabBar.currentIndex === 2
-                        text: isSpanish ? "Verificar de Nuevo" : "Check Again"
-                        leftPadding: 15
-                        rightPadding: 15
-                        enabled: !anyDownloading && !downloadingPlugin
-                        anchors.verticalCenter: parent.verticalCenter
-                        onClicked: {
-                            checkAllSoundfonts();
-                            checkAllUpdates();
-                            checkPluginUpdate();
                         }
                     }
 
@@ -2177,9 +2126,11 @@ MuseScore {
     }
 
     function getFoundFilesCount() {
+        var _ = filesStatusRevision;  // Force dependency on revision counter
         var count = 0;
-        for (var i = 0; i < soundfontFiles.length; i++) {
-            if (filesStatus[soundfontFiles[i]].found) {
+        for (var i = 0; i < managedFiles.length; i++) {
+            var status = filesStatus[managedFiles[i]];
+            if (status && status.found) {
                 count++;
             }
         }
@@ -2187,13 +2138,30 @@ MuseScore {
     }
 
     function getUpdatableFilesCount() {
+        var _ = filesStatusRevision;  // Force dependency on revision counter
         var count = 0;
-        for (var i = 0; i < soundfontFiles.length; i++) {
-            if (filesStatus[soundfontFiles[i]].found && filesStatus[soundfontFiles[i]].needsUpdate) {
+        for (var i = 0; i < managedFiles.length; i++) {
+            var status = filesStatus[managedFiles[i]];
+            if (status && status.found && status.needsUpdate) {
                 count++;
             }
         }
         return count;
+    }
+
+    // Force UI update by reassigning filesStatus object and incrementing revision counter
+    // QML doesn't detect changes to nested properties, so we need to reassign the whole object
+    // and increment the revision counter to force re-evaluation of all bindings
+    // Also reassign managedFiles to force Repeater to re-render
+    function forceFilesStatusUpdate() {
+        var temp = filesStatus;
+        filesStatus = {};
+        filesStatus = temp;
+        filesStatusRevision++;
+
+        // Force Repeater to re-render by creating a new array copy
+        // Using concat([]) creates a shallow copy with new reference
+        managedFiles = managedFiles.concat([]);
     }
 
     function checkAllSoundfonts() {
@@ -2205,12 +2173,28 @@ MuseScore {
 
         var separator = (Qt.platform.os === "windows") ? "\\" : "/";
 
-        for (var i = 0; i < soundfontFiles.length; i++) {
-            var filename = soundfontFiles[i];
-            var testPath = userSoundFontsDir + separator + filename;
+        for (var i = 0; i < managedFiles.length; i++) {
+            var filename = managedFiles[i];
+            var targetDir = getTargetDirectory(filename);
+            var testPath = targetDir + (targetDir.endsWith("/") || targetDir.endsWith("\\") ? "" : separator) + filename;
 
             fileChecker.source = testPath;
             var exists = fileChecker.exists();
+
+            // Initialize status object if it doesn't exist
+            if (!filesStatus[filename]) {
+                filesStatus[filename] = {
+                    found: false,
+                    needsUpdate: false,
+                    localSize: 0,
+                    remoteSize: 0,
+                    localDate: "",
+                    remoteDate: "",
+                    downloading: false,
+                    downloadComplete: false,
+                    downloadError: false
+                };
+            }
 
             filesStatus[filename].found = exists;
 
@@ -2222,7 +2206,7 @@ MuseScore {
         }
 
         // Force UI update
-        filesStatusChanged();
+        forceFilesStatusUpdate();
     }
 
     function checkRemoteUrl() {
@@ -2233,7 +2217,7 @@ MuseScore {
         remoteUrlValid = false;
 
         // Test URL by checking if first file exists
-        var testUrl = remoteBaseUrl + "/" + soundfontFiles[0];
+        var testUrl = remoteBaseUrl + "/" + managedFiles[0];
         console.log("Checking remote base URL: " + testUrl);
 
         var xhr = new XMLHttpRequest();
@@ -2312,18 +2296,77 @@ MuseScore {
         return 0;
     }
 
+    // Helper function to check if any file needs update or download
+    function hasUpdatesAvailable() {
+        var _ = filesStatusRevision;  // Force dependency on revision counter
+        for (var i = 0; i < managedFiles.length; i++) {
+            var filename = managedFiles[i];
+            if (!filesStatus[filename])
+                continue;
+            if (!filesStatus[filename].found || filesStatus[filename].needsUpdate) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Helper function to check if any file needs update (not missing, just update)
+    function hasUpdatesOnly() {
+        var _ = filesStatusRevision;  // Force dependency on revision counter
+        for (var i = 0; i < managedFiles.length; i++) {
+            var filename = managedFiles[i];
+            if (!filesStatus[filename])
+                continue;
+            if (filesStatus[filename].found && filesStatus[filename].needsUpdate) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Helper function to check if any file is missing
+    function hasMissingFiles() {
+        var _ = filesStatusRevision;  // Force dependency on revision counter
+        for (var i = 0; i < managedFiles.length; i++) {
+            var filename = managedFiles[i];
+            if (!filesStatus[filename])
+                continue;
+            if (!filesStatus[filename].found) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Helper function to get the target directory for a file
+    function getTargetDirectory(filename) {
+        // Plugin goes to plugins directory, soundfonts to soundfonts directory
+        return (filename === pluginFilename) ? userPluginsDir : userSoundFontsDir;
+    }
+
+    // Helper function to get the full local path for a file
+    function getLocalPath(filename) {
+        var separator = (Qt.platform.os === "windows") ? "\\" : "/";
+        var dir = getTargetDirectory(filename);
+        if (dir.charAt(dir.length - 1) !== "/" && dir.charAt(dir.length - 1) !== "\\") {
+            dir += separator;
+        }
+        return dir + filename;
+    }
+
     function checkAllUpdates() {
         var separator = (Qt.platform.os === "windows") ? "\\" : "/";
 
-        for (var i = 0; i < soundfontFiles.length; i++) {
-            var filename = soundfontFiles[i];
+        for (var i = 0; i < managedFiles.length; i++) {
+            var filename = managedFiles[i];
 
-            // Skip if file not found
-            if (!filesStatus[filename].found) {
+            // Skip if file not found or status not initialized
+            if (!filesStatus[filename] || !filesStatus[filename].found) {
                 continue;
             }
 
-            var localPath = userSoundFontsDir + separator + filename;
+            var targetDir = getTargetDirectory(filename);
+            var localPath = targetDir + (targetDir.endsWith("/") || targetDir.endsWith("\\") ? "" : separator) + filename;
             var remoteUrl = remoteBaseUrl + "/" + filename;
 
             // Get local file size and date
@@ -2362,10 +2405,8 @@ MuseScore {
                         console.log("✓ " + filename + " is up to date");
                     }
 
-                    // Force UI update by reassigning the object
-                    var temp = filesStatus;
-                    filesStatus = {};
-                    filesStatus = temp;
+                    // Force UI update
+                    forceFilesStatusUpdate();
                 }
             }
         };
@@ -2395,16 +2436,17 @@ MuseScore {
         process.startWithArgs("curl", ["--version"]);
     }
 
-    function downloadSoundfont() {
+    // Unified download function for all managed files (plugin + soundfonts)
+    function downloadFiles(filesList) {
         if (anyDownloading) {
             return;
         }
 
         // Build list of files to download (not found or needs update)
         filesToDownload = [];
-        for (var i = 0; i < soundfontFiles.length; i++) {
-            var filename = soundfontFiles[i];
-            if (!filesStatus[filename].found || filesStatus[filename].needsUpdate) {
+        for (var i = 0; i < filesList.length; i++) {
+            var filename = filesList[i];
+            if (filesStatus[filename] && (!filesStatus[filename].found || filesStatus[filename].needsUpdate)) {
                 filesToDownload.push(filename);
             }
         }
@@ -2433,18 +2475,29 @@ MuseScore {
         if (downloadedCount >= filesToDownload.length) {
             // All files downloaded
             anyDownloading = false;
-            downloadStatus = isSpanish ? "✓ Todos los archivos instalados correctamente!\n\n" + "Haz clic en 'Reiniciar MuseScore' para usar los nuevos soundfonts." : "✓ All files installed successfully!\n\n" + "Click 'Restart MuseScore' to use the new soundfonts.";
+            downloadStatus = isSpanish ? "✓ Todos los archivos instalados correctamente!\n\n" + "Haz clic en 'Reiniciar MuseScore' para usar los nuevos archivos." : "✓ All files installed successfully!\n\n" + "Click 'Restart MuseScore' to use the new files.";
             showRestartButton = true;
             console.log("All downloads complete!");
 
             // Refresh file status
             checkAllSoundfonts();
             checkAllUpdates();
+            checkPluginUpdate();
             return;
         }
 
         currentDownloadFile = filesToDownload[downloadedCount];
         anyDownloading = true;
+
+        // Mark file as downloading
+        filesStatus[currentDownloadFile].downloading = true;
+        filesStatus[currentDownloadFile].downloadComplete = false;
+        filesStatus[currentDownloadFile].downloadError = false;
+
+        // Force UI update
+        var temp = filesStatus;
+        filesStatus = {};
+        filesStatus = temp;
 
         var progressText = "(" + (downloadedCount + 1) + "/" + totalToDownload + ")";
         downloadStatus = isSpanish ? "Descargando " + currentDownloadFile + " " + progressText + "..." : "Downloading " + currentDownloadFile + " " + progressText + "...";
@@ -2460,8 +2513,7 @@ MuseScore {
     }
 
     function downloadFileWithXHR(filename) {
-        var separator = (Qt.platform.os === "windows") ? "\\" : "/";
-        var targetPath = userSoundFontsDir + separator + filename;
+        var targetPath = getLocalPath(filename);
         var fileUrl = remoteBaseUrl + "/" + filename;
 
         console.log("Downloading from: " + fileUrl);
@@ -2493,18 +2545,29 @@ MuseScore {
                     filesStatus[filename].found = true;
                     filesStatus[filename].localSize = buffer.length;
                     filesStatus[filename].needsUpdate = false;
-                    filesStatusChanged();
+                    filesStatus[filename].downloading = false;
+                    filesStatus[filename].downloadComplete = true;
+                    filesStatus[filename].downloadError = false;
+                    forceFilesStatusUpdate();
 
                     // Move to next file
                     downloadedCount++;
                     downloadNextFile();
                 } else {
                     anyDownloading = false;
+                    filesStatus[filename].downloading = false;
+                    filesStatus[filename].downloadComplete = false;
+                    filesStatus[filename].downloadError = true;
+                    forceFilesStatusUpdate();
                     downloadStatus = isSpanish ? "✗ Error: " + filename + " no se pudo guardar" : "✗ Error: " + filename + " could not be saved";
                     console.log("Error: Installation failed for " + filename);
                 }
             } else {
                 anyDownloading = false;
+                filesStatus[filename].downloading = false;
+                filesStatus[filename].downloadComplete = false;
+                filesStatus[filename].downloadError = true;
+                forceFilesStatusUpdate();
                 downloadStatus = isSpanish ? "✗ Error de descarga (HTTP " + xhr.status + ")\n" + "Archivo: " + filename : "✗ Download error (HTTP " + xhr.status + ")\n" + "File: " + filename;
                 console.log("Download failed for " + filename + ". HTTP status: " + xhr.status);
             }
@@ -2512,6 +2575,10 @@ MuseScore {
 
         xhr.onerror = function () {
             anyDownloading = false;
+            filesStatus[filename].downloading = false;
+            filesStatus[filename].downloadComplete = false;
+            filesStatus[filename].downloadError = true;
+            forceFilesStatusUpdate();
             downloadStatus = isSpanish ? "✗ Error de conexión descargando " + filename : "✗ Connection error downloading " + filename;
             console.log("Network error downloading " + filename);
         };
@@ -2520,8 +2587,7 @@ MuseScore {
     }
 
     function downloadFileWithCurl(filename) {
-        var separator = (Qt.platform.os === "windows") ? "\\" : "/";
-        var targetPath = userSoundFontsDir + separator + filename;
+        var targetPath = getLocalPath(filename);
         var fileUrl = remoteBaseUrl + "/" + filename;
 
         console.log("Downloading from: " + fileUrl);
@@ -2543,13 +2609,20 @@ MuseScore {
                     filesStatus[filename].found = true;
                     filesStatus[filename].localSize = localSize;
                     filesStatus[filename].needsUpdate = false;
-                    filesStatusChanged();
+                    filesStatus[filename].downloading = false;
+                    filesStatus[filename].downloadComplete = true;
+                    filesStatus[filename].downloadError = false;
+                    forceFilesStatusUpdate();
 
                     // Move to next file
                     downloadedCount++;
                     downloadNextFile();
                 } else {
                     anyDownloading = false;
+                    filesStatus[filename].downloading = false;
+                    filesStatus[filename].downloadComplete = false;
+                    filesStatus[filename].downloadError = true;
+                    forceFilesStatusUpdate();
                     downloadStatus = isSpanish ? "✗ Error: " + filename + " no se pudo guardar" : "✗ Error: " + filename + " could not be saved";
                     console.log("Error: File does not exist after download");
                 }
@@ -2557,6 +2630,10 @@ MuseScore {
                 var output = process.readAllStandardOutput();
                 console.log("Download failed for " + filename + ". Output: " + output);
                 anyDownloading = false;
+                filesStatus[filename].downloading = false;
+                filesStatus[filename].downloadComplete = false;
+                filesStatus[filename].downloadError = true;
+                forceFilesStatusUpdate();
                 downloadStatus = isSpanish ? "✗ Error de descarga (código " + exitCode + ")\n" + "Archivo: " + filename : "✗ Download error (code " + exitCode + ")\n" + "File: " + filename;
             }
         });
@@ -2584,7 +2661,6 @@ MuseScore {
     function checkPluginUpdate() {
         console.log("Checking for plugin update...");
         checkingPluginUpdate = true;
-        pluginUpdateAvailable = false;
 
         if (!curlAvailable) {
             console.log("curl not available, cannot check for plugin updates");
@@ -2598,9 +2674,34 @@ MuseScore {
             pluginPath = pluginPath.substring(7);
         }
 
+        // Initialize plugin in filesStatus if needed
+        if (!filesStatus[pluginFilename]) {
+            filesStatus[pluginFilename] = {
+                found: false,
+                needsUpdate: false,
+                localSize: 0,
+                remoteSize: 0,
+                localDate: "",
+                remoteDate: "",
+                downloading: false,
+                downloadComplete: false,
+                downloadError: false
+            };
+        }
+
         // Get local plugin size
         var localSize = getLocalFileSize(pluginPath);
+        filesStatus[pluginFilename].localSize = localSize;
+        filesStatus[pluginFilename].found = (localSize > 0);
         console.log("Local plugin size: " + localSize);
+
+        // Get local file date
+        fileChecker.source = pluginPath;
+        var localTimestamp = fileChecker.modifiedTime();
+        if (localTimestamp > 0) {
+            var localDate = new Date(localTimestamp * 1000);
+            filesStatus[pluginFilename].localDate = Qt.formatDateTime(localDate, "dd/MM/yyyy hh:mm");
+        }
 
         // Check remote plugin size using HEAD request
         var process = Qt.createQmlObject('import MuseScore 3.0; QProcess {}', plugin);
@@ -2615,68 +2716,28 @@ MuseScore {
                     var lastMatch = matches[matches.length - 1].match(/(\d+)/);
                     if (lastMatch) {
                         var remoteSize = parseInt(lastMatch[1]);
+                        filesStatus[pluginFilename].remoteSize = remoteSize;
                         console.log("Remote plugin size: " + remoteSize);
 
-                        if (remoteSize > 0 && remoteSize !== localSize) {
-                            pluginUpdateAvailable = true;
-                            console.log("Plugin update available!");
+                        // Compare sizes
+                        if (remoteSize > 0 && localSize > 0 && remoteSize !== localSize) {
+                            filesStatus[pluginFilename].needsUpdate = true;
+                            console.log("✓ Update available for plugin");
                         } else {
-                            console.log("Plugin is up to date");
+                            filesStatus[pluginFilename].needsUpdate = false;
+                            console.log("✓ Plugin is up to date");
                         }
+
+                        // Force UI update
+                        forceFilesStatusUpdate();
                     }
                 }
             }
         });
 
         // Use curl with HEAD request (follow redirects with -L)
+        var pluginRemoteUrl = remoteBaseUrl + "/" + pluginFilename;
         process.startWithArgs("curl", ["-sLI", pluginRemoteUrl]);
-    }
-
-    function downloadPluginUpdate() {
-        console.log("Downloading plugin update...");
-        downloadingPlugin = true;
-        pluginDownloadStatus = "";
-
-        // Use the configured plugins directory
-        var pluginPath = userPluginsDir;
-        if (pluginPath.charAt(pluginPath.length - 1) !== "/" && pluginPath.charAt(pluginPath.length - 1) !== "\\") {
-            pluginPath += (Qt.platform.os === "windows") ? "\\" : "/";
-        }
-        pluginPath += "PulsoPua.qml";
-
-        console.log("Plugin will be downloaded to: " + pluginPath);
-
-        // Create backup of current plugin
-        var backupPath = pluginPath + ".backup";
-        console.log("Creating backup at: " + backupPath);
-
-        var process = Qt.createQmlObject('import MuseScore 3.0; QProcess {}', plugin);
-
-        process.finished.connect(function (exitCode, exitStatus) {
-            downloadingPlugin = false;
-
-            if (exitCode === 0) {
-                // Verify download
-                var newSize = getLocalFileSize(pluginPath);
-                console.log("Downloaded plugin size: " + newSize);
-
-                if (newSize > 0) {
-                    pluginUpdateAvailable = false;
-                    pluginDownloadStatus = isSpanish ? "✓ Plugin actualizado correctamente\n" + "Por favor, cierra y vuelve a abrir el plugin para usar la nueva versión.\n" + "Copia de seguridad guardada en: PulsoPua.qml.backup" : "✓ Plugin updated successfully\n" + "Please close and reopen the plugin to use the new version.\n" + "Backup saved at: PulsoPua.qml.backup";
-                    console.log("Plugin updated successfully");
-                } else {
-                    pluginDownloadStatus = isSpanish ? "✗ Error: El plugin no se pudo guardar" : "✗ Error: Plugin could not be saved";
-                    console.log("Error: File does not exist after download");
-                }
-            } else {
-                var output = process.readAllStandardOutput();
-                console.log("Download failed. Output: " + output);
-                pluginDownloadStatus = isSpanish ? "✗ Error de descarga (código " + exitCode + ")" : "✗ Download error (code " + exitCode + ")";
-            }
-        });
-
-        // Download directly to plugin location (will overwrite)
-        process.startWithArgs("curl", ["-L", "-o", pluginPath, pluginRemoteUrl]);
     }
 
     onRun: {
