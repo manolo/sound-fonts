@@ -84,7 +84,7 @@ MuseScore {
     property var managedFiles: ["PulsoPua.qml", "Bandurria.sf2", "Bandurria-Con-Tremolo.sf2", "Laud.sf2", "Laud-Con-Tremolo.sf2"]
 
     // Remote base URL (same for all files)
-    property string remoteBaseUrl: "https://github.com/manolo/sound-fonts/raw/refs/heads/main"
+    property string remoteBaseUrl: "https://raw.githubusercontent.com/manolo/sound-fonts/refs/heads/main"
 
     // Plugin filename (first in managedFiles)
     property string pluginFilename: managedFiles[0]
@@ -2180,7 +2180,7 @@ MuseScore {
         checkingRemoteUrl = true;
         remoteUrlValid = false;
 
-        // Test URL by checking if first file exists
+        // Test URL by checking if first managed file exists
         var testUrl = remoteBaseUrl + "/" + managedFiles[0];
         console.log("Checking remote base URL: " + testUrl);
 
