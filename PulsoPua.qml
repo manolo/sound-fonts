@@ -75,7 +75,6 @@ MuseScore {
     property string userSoundFontsDir: ""
     property string userPluginsDir: ""
     property bool curlAvailable: false
-    property bool checkingCurl: true
     property bool writeBinaryAvailable: false
     property bool directoryExists: false
     property bool remoteUrlValid: false
@@ -114,8 +113,6 @@ MuseScore {
     property bool soundfontFound: getFoundFilesCount() > 0
     property bool updateAvailable: getUpdatableFilesCount() > 0
     property bool downloading: anyDownloading
-    property int localFileSize: 0  // Not used for multi-file, kept for compatibility
-    property int remoteFileSize: 0  // Not used for multi-file, kept for compatibility
 
     // Use system palette for theme-aware colors
     SystemPalette {
@@ -163,8 +160,6 @@ MuseScore {
         category: "PulsoPuaSoundfontCheck"
         property string soundFontsDirectory: ""
         property string remoteBaseUrl: ""
-        // Store file info as JSON string: { "filename": { size: int, etag: string }, ... }
-        property string filesInfo: "{}"
     }
 
     Component.onCompleted: {
@@ -1070,7 +1065,7 @@ MuseScore {
                                                         text: modelData
                                                         font.pixelSize: 11
                                                         font.bold: true
-                                                        color: systemPalette.windowText
+                                                        color: "#333333"
                                                     }
 
                                                     Text {
@@ -1142,7 +1137,7 @@ MuseScore {
                                             font.pixelSize: 11
                                             wrapMode: Text.WordWrap
                                             width: parent.width
-                                            color: systemPalette.windowText
+                                            color: "#333333"
                                         }
                                     }
                                 }
@@ -2431,7 +2426,6 @@ MuseScore {
 
         process.finished.connect(function (exitCode, exitStatus) {
             curlAvailable = (exitCode === 0 || exitCode === 2);
-            checkingCurl = false;
             console.log("curl available: " + curlAvailable);
 
             // Now that curl check is complete, check for plugin updates
@@ -2657,10 +2651,6 @@ MuseScore {
         } else {
             return isSpanish ? "Linux: sudo apt install curl\n    o: sudo yum install curl" : "Linux: sudo apt install curl\n    or: sudo yum install curl";
         }
-    }
-
-    function openDownloadPage() {
-        Qt.openUrlExternally(remoteBaseUrl);
     }
 
     // ===== Plugin Update Functions =====
