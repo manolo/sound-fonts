@@ -308,70 +308,37 @@ MuseScore {
                 bottomPadding: 0
                 background: Item {}
 
-                TabButton {
-                    id: tabAdd
-                    text: isSpanish ? "Añadir Tremolos" : "Add Tremolos"
-                    height: 45
-                    contentItem: Text {
-                        text: parent.text
-                        font: parent.font
-                        color: systemPalette.buttonText
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: tabBar.currentIndex === 0 ? systemPalette.window : systemPalette.button
-                        border.color: systemPalette.mid
-                        border.width: 1
-                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === 0 ? systemPalette.window : systemPalette.mid }
-                    }
-                }
-
-                TabButton {
-                    id: tabRemove
-                    text: isSpanish ? "Eliminar Tremolos" : "Remove Tremolos"
-                    height: 45
-                    contentItem: Text {
-                        text: parent.text
-                        font: parent.font
-                        color: systemPalette.buttonText
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: tabBar.currentIndex === 1 ? systemPalette.window : systemPalette.button
-                        border.color: systemPalette.mid
-                        border.width: 1
-                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === 1 ? systemPalette.window : systemPalette.mid }
-                    }
-                }
-
-                TabButton {
-                    id: tabUpdates
-                    text: isSpanish ? "Actualizaciones" : "Updates"
-                    height: 45
-                    enabled: curlAvailable || !curlChecked
-                    contentItem: Text {
-                        text: {
-                            if (!curlChecked) {
-                                return parent.text + " ...";
-                            } else if (!curlAvailable) {
-                                return parent.text + " (curl N/A)";
-                            } else {
+                Repeater {
+                    model: [
+                        { es: "Añadir Tremolos", en: "Add Tremolos" },
+                        { es: "Eliminar Tremolos", en: "Remove Tremolos" },
+                        { es: "Actualizaciones", en: "Updates" }
+                    ]
+                    TabButton {
+                        property int tabIndex: index
+                        property bool isUpdatesTab: tabIndex === 2
+                        text: isSpanish ? modelData.es : modelData.en
+                        height: 45
+                        enabled: !isUpdatesTab || curlAvailable || !curlChecked
+                        contentItem: Text {
+                            text: {
+                                if (!isUpdatesTab) return parent.text;
+                                if (!curlChecked) return parent.text + " ...";
+                                if (!curlAvailable) return parent.text + " (curl N/A)";
                                 return (hasUpdatesAvailable() ? "\u2717 " : "\u2713 ") + parent.text;
                             }
+                            font: parent.font
+                            opacity: parent.enabled ? 1.0 : 0.5
+                            color: isUpdatesTab && curlChecked && curlAvailable ? (hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50") : systemPalette.buttonText
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
-                        font: parent.font
-                        opacity: (curlAvailable || !curlChecked) ? 1.0 : 0.5
-                        color: !curlChecked ? systemPalette.buttonText : !curlAvailable ? systemPalette.buttonText : hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: tabBar.currentIndex === 2 ? systemPalette.window : systemPalette.button
-                        border.color: systemPalette.mid
-                        border.width: 1
-                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === 2 ? systemPalette.window : systemPalette.mid }
+                        background: Rectangle {
+                            color: tabBar.currentIndex === tabIndex ? systemPalette.window : systemPalette.button
+                            border.color: "#444444"
+                            border.width: 1
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === tabIndex ? systemPalette.window : "#444444" }
+                        }
                     }
                 }
             }
@@ -396,7 +363,7 @@ MuseScore {
                     width: 1
                     height: parent.height
                     anchors.left: parent.left
-                    color: systemPalette.mid
+                    color: "#444444"
                 }
 
                 // Right border
@@ -404,7 +371,7 @@ MuseScore {
                     width: 1
                     height: parent.height
                     anchors.right: parent.right
-                    color: systemPalette.mid
+                    color: "#444444"
                 }
 
                 // Bottom border
@@ -412,7 +379,7 @@ MuseScore {
                     width: parent.width
                     height: 1
                     anchors.bottom: parent.bottom
-                    color: systemPalette.mid
+                    color: "#444444"
                 }
 
                 StackLayout {
