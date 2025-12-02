@@ -309,16 +309,45 @@ MuseScore {
                 background: Item {}
 
                 TabButton {
+                    id: tabAdd
                     text: isSpanish ? "Añadir Tremolos" : "Add Tremolos"
                     height: 45
+                    contentItem: Text {
+                        text: parent.text
+                        font: parent.font
+                        color: systemPalette.buttonText
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        color: tabBar.currentIndex === 0 ? systemPalette.window : systemPalette.button
+                        border.color: systemPalette.mid
+                        border.width: 1
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === 0 ? systemPalette.window : systemPalette.mid }
+                    }
                 }
 
                 TabButton {
+                    id: tabRemove
                     text: isSpanish ? "Eliminar Tremolos" : "Remove Tremolos"
                     height: 45
+                    contentItem: Text {
+                        text: parent.text
+                        font: parent.font
+                        color: systemPalette.buttonText
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        color: tabBar.currentIndex === 1 ? systemPalette.window : systemPalette.button
+                        border.color: systemPalette.mid
+                        border.width: 1
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === 1 ? systemPalette.window : systemPalette.mid }
+                    }
                 }
 
                 TabButton {
+                    id: tabUpdates
                     text: isSpanish ? "Actualizaciones" : "Updates"
                     height: 45
                     enabled: curlAvailable || !curlChecked
@@ -334,9 +363,15 @@ MuseScore {
                         }
                         font: parent.font
                         opacity: (curlAvailable || !curlChecked) ? 1.0 : 0.5
-                        color: !curlChecked ? systemPalette.windowText : !curlAvailable ? systemPalette.windowText : hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50"
+                        color: !curlChecked ? systemPalette.buttonText : !curlAvailable ? systemPalette.buttonText : hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        color: tabBar.currentIndex === 2 ? systemPalette.window : systemPalette.button
+                        border.color: systemPalette.mid
+                        border.width: 1
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: tabBar.currentIndex === 2 ? systemPalette.window : systemPalette.mid }
                     }
                 }
             }
@@ -460,6 +495,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
 
@@ -496,6 +532,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
 
@@ -532,6 +569,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
 
@@ -568,6 +606,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
 
@@ -604,6 +643,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
 
@@ -640,6 +680,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
 
@@ -676,6 +717,7 @@ MuseScore {
                                                             checked = true;
                                                         }
                                                     }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                                 }
                                             }
                                         }
@@ -708,6 +750,7 @@ MuseScore {
                                                     if (checked)
                                                         useSelectionAdd = true;
                                                 }
+                                                contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                             }
 
                                             RadioButton {
@@ -718,6 +761,7 @@ MuseScore {
                                                     if (checked)
                                                         useSelectionAdd = false;
                                                 }
+                                                contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                             }
                                         }
                                     }
@@ -740,6 +784,7 @@ MuseScore {
                                         text: isSpanish ? "Añadir símbolos de trémolo" : "Add tremolo symbols"
                                         checked: settingsAdd.addTremoloSymbols
                                         onCheckedChanged: settingsAdd.addTremoloSymbols = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -747,6 +792,7 @@ MuseScore {
                                         text: isSpanish ? "Establecer velocidad de notas a 65 (reproduce trémolo)" : "Set note velocity to 65 (play tremolo sound)"
                                         checked: settingsAdd.setNoteVelocity
                                         onCheckedChanged: settingsAdd.setNoteVelocity = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -754,6 +800,7 @@ MuseScore {
                                         text: isSpanish ? "No tocar notas ligadas" : "Don't play tied notes"
                                         checked: settingsAdd.disableTiedNotes
                                         onCheckedChanged: settingsAdd.disableTiedNotes = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -761,6 +808,7 @@ MuseScore {
                                         text: isSpanish ? "No tocar símbolos de trémolo" : "Don't play tremolo symbols"
                                         checked: settingsAdd.disableTremoloPlayback
                                         onCheckedChanged: settingsAdd.disableTremoloPlayback = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -768,6 +816,7 @@ MuseScore {
                                         text: isSpanish ? "No tocar dinámicas" : "Don't play dynamics"
                                         checked: settingsAdd.disableDynamics
                                         onCheckedChanged: settingsAdd.disableDynamics = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -775,6 +824,7 @@ MuseScore {
                                         text: isSpanish ? "No tocar articulaciones" : "Don't play articulations"
                                         checked: settingsAdd.disableArticulations
                                         onCheckedChanged: settingsAdd.disableArticulations = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -782,6 +832,7 @@ MuseScore {
                                         text: isSpanish ? "No tocar ornamentos (trinos, mordentes, etc.)" : "Don't play ornaments (trills, mordents, etc.)"
                                         checked: settingsAdd.disableOrnaments
                                         onCheckedChanged: settingsAdd.disableOrnaments = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -789,6 +840,7 @@ MuseScore {
                                         text: isSpanish ? "No tocar reguladores" : "Don't play hairpins"
                                         checked: settingsAdd.disableHairpins
                                         onCheckedChanged: settingsAdd.disableHairpins = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
                                 }
                             }
@@ -841,6 +893,7 @@ MuseScore {
                                         text: isSpanish ? "Eliminar símbolos de trémolo" : "Remove tremolo symbols"
                                         checked: settingsRemove.removeTremolos
                                         onCheckedChanged: settingsRemove.removeTremolos = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -848,6 +901,7 @@ MuseScore {
                                         text: isSpanish ? "Restaurar velocidad de notas (valor predeterminado)" : "Restore note velocity (default value)"
                                         checked: settingsRemove.restoreVelocity
                                         onCheckedChanged: settingsRemove.restoreVelocity = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -855,6 +909,7 @@ MuseScore {
                                         text: isSpanish ? "Restaurar reproducción de notas" : "Restore note playback"
                                         checked: settingsRemove.restoreNotePlayback
                                         onCheckedChanged: settingsRemove.restoreNotePlayback = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -862,6 +917,7 @@ MuseScore {
                                         text: isSpanish ? "Restaurar reproducción de dinámicas" : "Restore dynamics playback"
                                         checked: settingsRemove.restoreDynamics
                                         onCheckedChanged: settingsRemove.restoreDynamics = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -869,6 +925,7 @@ MuseScore {
                                         text: isSpanish ? "Restaurar reproducción de articulaciones" : "Restore articulations playback"
                                         checked: settingsRemove.restoreArticulations
                                         onCheckedChanged: settingsRemove.restoreArticulations = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -876,6 +933,7 @@ MuseScore {
                                         text: isSpanish ? "Restaurar reproducción de ornamentos" : "Restore ornaments playback"
                                         checked: settingsRemove.restoreOrnaments
                                         onCheckedChanged: settingsRemove.restoreOrnaments = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     CheckBox {
@@ -883,6 +941,7 @@ MuseScore {
                                         text: isSpanish ? "Restaurar reproducción de reguladores" : "Restore hairpins playback"
                                         checked: settingsRemove.restoreHairpins
                                         onCheckedChanged: settingsRemove.restoreHairpins = checked
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
                                 }
 
@@ -908,6 +967,7 @@ MuseScore {
                                             if (checked)
                                                 useSelectionRemove = true;
                                         }
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
 
                                     RadioButton {
@@ -919,6 +979,7 @@ MuseScore {
                                             if (checked)
                                                 useSelectionRemove = false;
                                         }
+                                        contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
                                     }
                                 }
                             }
