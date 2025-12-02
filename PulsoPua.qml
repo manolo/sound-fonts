@@ -1,7 +1,6 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.3
-import Qt.labs.platform 1.0 as Platform
 import MuseScore 3.0
 import FileIO 3.0
 
@@ -9,7 +8,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.3"
+    version: "2.0.4"
     pluginType: "dialog"
     width: 650
     height: 700
@@ -75,6 +74,8 @@ MuseScore {
     property string userSoundFontsDir: ""
     property string userPluginsDir: ""
     property bool curlAvailable: false
+    property bool curlChecked: false  // True after curl availability has been verified
+    property var currentProcess: null  // Keep reference to QProcess to prevent garbage collection
     property bool writeBinaryAvailable: false
     property bool directoryExists: false
     property bool remoteUrlValid: false
@@ -159,6 +160,7 @@ MuseScore {
         id: settingsSoundFont
         category: "PulsoPuaSoundfontCheck"
         property string soundFontsDirectory: ""
+        property string pluginsDirectory: ""
         property string remoteBaseUrl: ""
     }
 
@@ -217,40 +219,50 @@ MuseScore {
             };
         }
 
-        // Load saved SoundFonts directory or use default
-        if (settingsSoundFont.soundFontsDirectory && settingsSoundFont.soundFontsDirectory.length > 0) {
-            userSoundFontsDir = settingsSoundFont.soundFontsDirectory;
-        } else {
-            userSoundFontsDir = getDefaultPath();
+        // Defer all slow operations to after UI is shown
+        deferredInitTimer.start();
+    }
+
+    // Timer to defer slow operations until after UI is rendered
+    Timer {
+        id: deferredInitTimer
+        interval: 50  // Small delay to let UI render first
+        repeat: false
+        onTriggered: {
+            // Load saved SoundFonts directory or use default (normalize paths for platform)
+            if (settingsSoundFont.soundFontsDirectory && settingsSoundFont.soundFontsDirectory.length > 0) {
+                userSoundFontsDir = normalizePath(settingsSoundFont.soundFontsDirectory);
+            } else {
+                userSoundFontsDir = getDefaultPath();  // Already normalized
+            }
+
+            // Load saved Plugins directory or use default (normalize paths for platform)
+            if (settingsSoundFont.pluginsDirectory && settingsSoundFont.pluginsDirectory.length > 0) {
+                userPluginsDir = normalizePath(settingsSoundFont.pluginsDirectory);
+            } else {
+                userPluginsDir = getDefaultPluginsPath();  // Already normalized
+            }
+
+            // Load saved remote base URL or use default
+            if (settingsSoundFont.remoteBaseUrl && settingsSoundFont.remoteBaseUrl.length > 0) {
+                remoteBaseUrl = settingsSoundFont.remoteBaseUrl;
+            }
+
+            // Check if writeBinary() API is available (MuseScore 4.5+)
+            writeBinaryAvailable = (typeof fileChecker.writeBinary === "function");
+
+            // Check if curl is available
+            checkCurlAvailable();
+
+            // Check if soundfonts exist locally
+            checkAllSoundfonts();
+
+            // Check remote URL validity
+            checkRemoteUrl();
+
+            // Check for updates for all files
+            checkAllUpdates();
         }
-
-        // Load saved Plugins directory or use default
-        if (settingsSoundFont.pluginsDirectory && settingsSoundFont.pluginsDirectory.length > 0) {
-            userPluginsDir = settingsSoundFont.pluginsDirectory;
-        } else {
-            userPluginsDir = getDefaultPluginsPath();
-        }
-
-        // Load saved remote base URL or use default
-        if (settingsSoundFont.remoteBaseUrl && settingsSoundFont.remoteBaseUrl.length > 0) {
-            remoteBaseUrl = settingsSoundFont.remoteBaseUrl;
-        }
-
-        // Check if writeBinary() API is available (MuseScore 4.5+)
-        writeBinaryAvailable = (typeof fileChecker.writeBinary === "function");
-        console.log("writeBinary() available: " + writeBinaryAvailable);
-
-        // Check if curl is available (fallback if writeBinary not available)
-        checkCurlAvailable();
-
-        // Check if soundfonts exist
-        checkAllSoundfonts();
-
-        // Check remote URL validity
-        checkRemoteUrl();
-
-        // Check for updates for all files
-        checkAllUpdates();
     }
     // Main UI
     Rectangle {
@@ -309,10 +321,20 @@ MuseScore {
                 TabButton {
                     text: isSpanish ? "Actualizaciones" : "Updates"
                     height: 45
+                    enabled: curlAvailable || !curlChecked
                     contentItem: Text {
-                        text: (hasUpdatesAvailable() ? "\u2717 " : "\u2713 ") + parent.text
+                        text: {
+                            if (!curlChecked) {
+                                return parent.text + " ...";
+                            } else if (!curlAvailable) {
+                                return parent.text + " (curl N/A)";
+                            } else {
+                                return (hasUpdatesAvailable() ? "\u2717 " : "\u2713 ") + parent.text;
+                            }
+                        }
                         font: parent.font
-                        color: hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50"
+                        opacity: (curlAvailable || !curlChecked) ? 1.0 : 0.5
+                        color: !curlChecked ? systemPalette.windowText : !curlAvailable ? systemPalette.windowText : hasUpdatesOnly() ? "#f44336" : hasMissingFiles() ? "#ff9800" : "#4caf50"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -1058,7 +1080,7 @@ MuseScore {
 
                                                 Column {
                                                     anchors.verticalCenter: parent.verticalCenter
-                                                    spacing: 2
+                                                    spacing: 1
                                                     width: parent.width - 40
 
                                                     Text {
@@ -1069,11 +1091,27 @@ MuseScore {
                                                     }
 
                                                     Text {
-                                                        visible: {
-                                                            var _ = filesStatusRevision;  // Force dependency on revision counter
+                                                        id: sizesText
+                                                        property bool isDownloading: {
+                                                            var _ = filesStatusRevision;
                                                             return filesStatus[modelData] ? (filesStatus[modelData].downloading === true) : false;
                                                         }
-                                                        height: visible ? implicitHeight : 0
+                                                        visible: !isDownloading
+                                                        text: {
+                                                            var _ = filesStatusRevision;
+                                                            if (!filesStatus[modelData]) return "";
+                                                            var s = filesStatus[modelData];
+                                                            var local = s.localSize ? s.localSize : 0;
+                                                            var remote = s.remoteSize ? s.remoteSize : 0;
+                                                            return "Local: " + local + " | Remote: " + remote;
+                                                        }
+                                                        font.pixelSize: 8
+                                                        color: "#666666"
+                                                        font.family: "monospace"
+                                                    }
+
+                                                    Text {
+                                                        visible: sizesText.isDownloading
                                                         text: isSpanish ? "Descargando..." : "Downloading..."
                                                         font.pixelSize: 9
                                                         color: "#1976d2"
@@ -1148,27 +1186,6 @@ MuseScore {
                                 width: parent.width
                                 spacing: 10
 
-                                // Folder dialogs for directory selection
-                                Platform.FolderDialog {
-                                    id: soundFontsFolderDialog
-                                    title: isSpanish ? "Seleccionar directorio de SoundFonts" : "Select SoundFonts Directory"
-                                    onAccepted: {
-                                        userSoundFontsDir = folder.toString().replace(/^file:\/\//, "");
-                                        settingsSoundFont.soundFontsDirectory = userSoundFontsDir;
-                                        checkAllSoundfonts();
-                                        checkAllUpdates();
-                                    }
-                                }
-
-                                Platform.FolderDialog {
-                                    id: pluginsFolderDialog
-                                    title: isSpanish ? "Seleccionar directorio de Plugins" : "Select Plugins Directory"
-                                    onAccepted: {
-                                        userPluginsDir = folder.toString().replace(/^file:\/\//, "");
-                                        settingsSoundFont.pluginsDirectory = userPluginsDir;
-                                    }
-                                }
-
                                 // SoundFonts directory location (editable)
                                 Text {
                                     text: isSpanish ? "Directorio SoundFonts:" : "SoundFonts Directory:"
@@ -1188,29 +1205,16 @@ MuseScore {
 
                                         TextField {
                                             id: soundFontsDirField
-                                            width: parent.width - browseSoundFontsBtn.width - existsIndicator.width - parent.spacing * 2
+                                            width: parent.width - existsIndicator.width - parent.spacing
                                             text: userSoundFontsDir
                                             font.pixelSize: 11
                                             font.family: "monospace"
                                             selectByMouse: true
                                             onTextChanged: {
-                                                userSoundFontsDir = text;
-                                                settingsSoundFont.soundFontsDirectory = text;
+                                                userSoundFontsDir = normalizePath(text);
+                                                settingsSoundFont.soundFontsDirectory = userSoundFontsDir;
                                                 checkAllSoundfonts();
                                                 checkAllUpdates();
-                                            }
-                                        }
-
-                                        Button {
-                                            id: browseSoundFontsBtn
-                                            text: "..."
-                                            width: 30
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            onClicked: {
-                                                if (userSoundFontsDir && userSoundFontsDir.length > 0) {
-                                                    soundFontsFolderDialog.currentFolder = userSoundFontsDir;
-                                                }
-                                                soundFontsFolderDialog.open();
                                             }
                                         }
 
@@ -1251,27 +1255,14 @@ MuseScore {
 
                                         TextField {
                                             id: pluginsDirField
-                                            width: parent.width - browsePluginsBtn.width - pluginsExistsIndicator.width - parent.spacing * 2
+                                            width: parent.width - pluginsExistsIndicator.width - parent.spacing
                                             text: userPluginsDir
                                             font.pixelSize: 11
                                             font.family: "monospace"
                                             selectByMouse: true
                                             onTextChanged: {
-                                                userPluginsDir = text;
-                                                settingsSoundFont.pluginsDirectory = text;
-                                            }
-                                        }
-
-                                        Button {
-                                            id: browsePluginsBtn
-                                            text: "..."
-                                            width: 30
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            onClicked: {
-                                                if (userPluginsDir && userPluginsDir.length > 0) {
-                                                    pluginsFolderDialog.currentFolder = userPluginsDir;
-                                                }
-                                                pluginsFolderDialog.open();
+                                                userPluginsDir = normalizePath(text);
+                                                settingsSoundFont.pluginsDirectory = userPluginsDir;
                                             }
                                         }
 
@@ -2095,30 +2086,45 @@ MuseScore {
 
     // ===== SoundFont Helper Functions =====
 
+    // Normalize path separators for the current platform
+    function normalizePath(path) {
+        if (Qt.platform.os === "windows") {
+            // Convert all forward slashes to backslashes on Windows
+            return path.replace(/\//g, "\\");
+        } else {
+            // Convert all backslashes to forward slashes on Unix
+            return path.replace(/\\/g, "/");
+        }
+    }
+
     function getDefaultPath() {
         var home = fileChecker.homePath();
+        var path;
 
         if (Qt.platform.os === "osx" || Qt.platform.os === "macos") {
-            return home + "/Documents/MuseScore4/SoundFonts";
+            path = home + "/Documents/MuseScore4/SoundFonts";
         } else if (Qt.platform.os === "windows") {
-            return home + "\\Documents\\MuseScore4\\SoundFonts";
+            path = home + "/Documents/MuseScore4/SoundFonts";
         } else {
             fileChecker.source = home + "/.local/share/MuseScore/MuseScore4/SoundFonts";
-            return fileChecker.exists() ? fileChecker.source : home + "/Documents/MuseScore4/SoundFonts";
+            path = fileChecker.exists() ? fileChecker.source : home + "/Documents/MuseScore4/SoundFonts";
         }
+        return normalizePath(path);
     }
 
     function getDefaultPluginsPath() {
         var home = fileChecker.homePath();
+        var path;
 
         if (Qt.platform.os === "osx" || Qt.platform.os === "macos") {
-            return home + "/Documents/MuseScore4/Plugins";
+            path = home + "/Documents/MuseScore4/Plugins";
         } else if (Qt.platform.os === "windows") {
-            return home + "\\Documents\\MuseScore4\\Plugins";
+            path = home + "/Documents/MuseScore4/Plugins";
         } else {
             fileChecker.source = home + "/.local/share/MuseScore/MuseScore4/Plugins";
-            return fileChecker.exists() ? fileChecker.source : home + "/Documents/MuseScore4/Plugins";
+            path = fileChecker.exists() ? fileChecker.source : home + "/Documents/MuseScore4/Plugins";
         }
+        return normalizePath(path);
     }
 
     function checkDirectory() {
@@ -2343,7 +2349,8 @@ MuseScore {
     // Helper function to get the target directory for a file
     function getTargetDirectory(filename) {
         // Plugin goes to plugins directory, soundfonts to soundfonts directory
-        return (filename === pluginFilename) ? userPluginsDir : userSoundFontsDir;
+        var dir = (filename === pluginFilename) ? userPluginsDir : userSoundFontsDir;
+        return normalizePath(dir);
     }
 
     // Helper function to get the full local path for a file
@@ -2353,7 +2360,7 @@ MuseScore {
         if (dir.charAt(dir.length - 1) !== "/" && dir.charAt(dir.length - 1) !== "\\") {
             dir += separator;
         }
-        return dir + filename;
+        return normalizePath(dir + filename);
     }
 
     function checkAllUpdates() {
@@ -2426,9 +2433,10 @@ MuseScore {
 
         process.finished.connect(function (exitCode, exitStatus) {
             curlAvailable = (exitCode === 0 || exitCode === 2);
+            curlChecked = true;
             console.log("curl available: " + curlAvailable);
 
-            // Now that curl check is complete, check for plugin updates
+            // Check for plugin updates if curl is available
             if (curlAvailable) {
                 checkPluginUpdate();
             }
@@ -2505,12 +2513,88 @@ MuseScore {
 
         console.log("Starting download: " + currentDownloadFile);
 
-        // Prefer writeBinary() if available (MuseScore 4.5+), otherwise use curl
-        if (writeBinaryAvailable) {
-            downloadFileWithXHR(currentDownloadFile);
-        } else if (curlAvailable) {
+        // Always use curl for all downloads
+        if (curlAvailable) {
             downloadFileWithCurl(currentDownloadFile);
+        } else {
+            anyDownloading = false;
+            filesStatus[currentDownloadFile].downloading = false;
+            filesStatus[currentDownloadFile].downloadError = true;
+            forceFilesStatusUpdate();
+            downloadStatus = isSpanish ? "✗ No se puede descargar: curl no disponible" : "✗ Cannot download: curl not available";
         }
+    }
+
+    function downloadTextFileWithXHR(filename) {
+        var targetPath = getLocalPath(filename);
+        var fileUrl = remoteBaseUrl + "/" + filename;
+
+        console.log("Downloading text file from: " + fileUrl);
+        console.log("Target path: " + targetPath);
+        console.log("userPluginsDir: " + userPluginsDir);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", fileUrl, true);
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    console.log("Download complete, writing text file...");
+                    var content = xhr.responseText;
+                    console.log("File size: " + content.length + " bytes");
+                    console.log("Writing to: " + targetPath);
+
+                    // Write as text file
+                    fileChecker.source = targetPath;
+                    var writeResult = fileChecker.write(content);
+                    console.log("Write result: " + writeResult);
+                    if (writeResult) {
+                        console.log("OK " + filename + " installed successfully");
+
+                        // Update file status
+                        filesStatus[filename].found = true;
+                        filesStatus[filename].localSize = content.length;
+                        filesStatus[filename].needsUpdate = false;
+                        filesStatus[filename].downloading = false;
+                        filesStatus[filename].downloadComplete = true;
+                        filesStatus[filename].downloadError = false;
+                        forceFilesStatusUpdate();
+
+                        // Move to next file
+                        downloadedCount++;
+                        downloadNextFile();
+                    } else {
+                        anyDownloading = false;
+                        filesStatus[filename].downloading = false;
+                        filesStatus[filename].downloadComplete = false;
+                        filesStatus[filename].downloadError = true;
+                        forceFilesStatusUpdate();
+                        downloadStatus = isSpanish ? "✗ Error: " + filename + " no se pudo guardar" : "✗ Error: " + filename + " could not be saved";
+                        console.log("Error: Installation failed for " + filename);
+                    }
+                } else {
+                    anyDownloading = false;
+                    filesStatus[filename].downloading = false;
+                    filesStatus[filename].downloadComplete = false;
+                    filesStatus[filename].downloadError = true;
+                    forceFilesStatusUpdate();
+                    downloadStatus = isSpanish ? "✗ Error de descarga (HTTP " + xhr.status + ")" : "✗ Download error (HTTP " + xhr.status + ")";
+                    console.log("Download failed for " + filename + ". HTTP status: " + xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function () {
+            anyDownloading = false;
+            filesStatus[filename].downloading = false;
+            filesStatus[filename].downloadComplete = false;
+            filesStatus[filename].downloadError = true;
+            forceFilesStatusUpdate();
+            downloadStatus = isSpanish ? "✗ Error de conexión descargando " + filename : "✗ Connection error downloading " + filename;
+            console.log("Network error downloading " + filename);
+        };
+
+        xhr.send();
     }
 
     function downloadFileWithXHR(filename) {
@@ -2615,6 +2699,8 @@ MuseScore {
                     filesStatus[filename].downloadError = false;
                     forceFilesStatusUpdate();
 
+                    downloadStatus = isSpanish ? "✓ " + filename + " instalado" : "✓ " + filename + " installed";
+
                     // Move to next file
                     downloadedCount++;
                     downloadNextFile();
@@ -2635,7 +2721,7 @@ MuseScore {
                 filesStatus[filename].downloadComplete = false;
                 filesStatus[filename].downloadError = true;
                 forceFilesStatusUpdate();
-                downloadStatus = isSpanish ? "✗ Error de descarga (código " + exitCode + ")\n" + "Archivo: " + filename : "✗ Download error (code " + exitCode + ")\n" + "File: " + filename;
+                downloadStatus = isSpanish ? "✗ Error de descarga (código " + exitCode + ")\nArchivo: " + filename : "✗ Download error (code " + exitCode + ")\nFile: " + filename;
             }
         });
 
@@ -2659,16 +2745,14 @@ MuseScore {
         console.log("Checking for plugin update...");
         checkingPluginUpdate = true;
 
-        if (!curlAvailable) {
-            console.log("curl not available, cannot check for plugin updates");
-            checkingPluginUpdate = false;
-            return;
-        }
-
         // Get current plugin file path
         var pluginPath = Qt.resolvedUrl("PulsoPua.qml").toString();
         if (pluginPath.indexOf("file://") === 0) {
             pluginPath = pluginPath.substring(7);
+        }
+        // Windows: remove extra leading slash for paths like /C:/...
+        if (Qt.platform.os === "windows" && pluginPath.charAt(0) === '/') {
+            pluginPath = pluginPath.substring(1);
         }
 
         // Initialize plugin in filesStatus if needed
@@ -2700,7 +2784,9 @@ MuseScore {
             filesStatus[pluginFilename].localDate = Qt.formatDateTime(localDate, "dd/MM/yyyy hh:mm");
         }
 
-        // Check remote plugin size using HEAD request
+        // Check remote plugin size using curl HEAD request (same method as soundfonts)
+        var pluginRemoteUrl = remoteBaseUrl + "/" + pluginFilename;
+
         var process = Qt.createQmlObject('import MuseScore 3.0; QProcess {}', plugin);
 
         process.finished.connect(function (exitCode, exitStatus) {
@@ -2719,21 +2805,22 @@ MuseScore {
                         // Compare sizes
                         if (remoteSize > 0 && localSize > 0 && remoteSize !== localSize) {
                             filesStatus[pluginFilename].needsUpdate = true;
-                            console.log("✓ Update available for plugin");
+                            console.log("Update available for plugin");
                         } else {
                             filesStatus[pluginFilename].needsUpdate = false;
-                            console.log("✓ Plugin is up to date");
+                            console.log("Plugin is up to date");
                         }
 
                         // Force UI update
                         forceFilesStatusUpdate();
                     }
                 }
+            } else {
+                console.log("Failed to check plugin update via curl");
             }
         });
 
-        // Use curl with HEAD request (follow redirects with -L)
-        var pluginRemoteUrl = remoteBaseUrl + "/" + pluginFilename;
+        // Use curl with HEAD request to get Content-Length
         process.startWithArgs("curl", ["-sLI", pluginRemoteUrl]);
     }
 
