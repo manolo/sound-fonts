@@ -8,10 +8,10 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.4"
+    version: "2.0.6"
     pluginType: "dialog"
     width: 650
-    height: 700
+    height: 750
 
     // Common properties
     property bool isSpanish: false
@@ -20,6 +20,7 @@ MuseScore {
     // Add Tremolo properties
     property var minDurationValue: 0.375
     property bool hasSelectionAdd: false
+    property bool hasDiscreteSelectionAdd: false  // Individual notes selected (Ctrl+click)
     property bool useSelectionAdd: false
 
     // Articulations that INCREASE velocity
@@ -68,6 +69,7 @@ MuseScore {
 
     // Remove Tremolo properties
     property bool hasSelectionRemove: false
+    property bool hasDiscreteSelectionRemove: false  // Individual notes selected (Ctrl+click)
     property bool useSelectionRemove: false
 
     // SoundFont Check properties
@@ -175,14 +177,33 @@ MuseScore {
             minDurationValue = settingsAdd.savedDuration;
         }
 
-        // Check for selection (2 or more notes selected)
+        // Check for selection
         if (curScore) {
             // Check if curScore.spanners API is available
             hasSpannersAPI = (typeof curScore.spanners !== 'undefined');
 
             var selection = curScore.selection;
-            hasSelectionAdd = selection && selection.elements && selection.elements.length >= 2;
-            hasSelectionRemove = hasSelectionAdd;
+            if (selection && selection.elements && selection.elements.length >= 1) {
+                hasSelectionAdd = true;
+                hasSelectionRemove = true;
+
+                // Check if this is a discrete selection (individual elements) vs range selection
+                var cursor = curScore.newCursor();
+                cursor.rewind(Cursor.SELECTION_START);
+                var rangeStart = cursor.segment ? cursor.segment.tick : -1;
+                cursor.rewind(Cursor.SELECTION_END);
+                var rangeEnd = cursor.segment ? cursor.segment.tick : -1;
+
+                // If range start/end are both valid and different, it's a range selection
+                if (rangeStart >= 0 && rangeEnd > rangeStart) {
+                    hasDiscreteSelectionAdd = false;
+                    hasDiscreteSelectionRemove = false;
+                } else {
+                    // Discrete selection - individual elements selected
+                    hasDiscreteSelectionAdd = true;
+                    hasDiscreteSelectionRemove = true;
+                }
+            }
         }
         useSelectionAdd = hasSelectionAdd;
         useSelectionRemove = hasSelectionRemove;
@@ -428,6 +449,43 @@ MuseScore {
                                         Column {
                                             spacing: 2
                                             width: parent.width
+
+                                            // Eighth note
+                                            Row {
+                                                spacing: 8
+                                                width: parent.width
+                                                height: 30
+
+                                                Text {
+                                                    text: "\uE1D7"
+                                                    font.family: "Bravura"
+                                                    font.pixelSize: 20
+                                                    width: 20
+                                                    leftPadding: 10
+                                                    horizontalAlignment: Text.AlignLeft
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    color: systemPalette.windowText
+                                                }
+
+                                                RadioButton {
+                                                    id: radio_eighth
+                                                    text: isSpanish ? "Corchea" : "Eighth note"
+                                                    ButtonGroup.group: durationGroup
+                                                    onCheckedChanged: {
+                                                        if (checked) {
+                                                            minDurationValue = 0.125;
+                                                            settingsAdd.savedDuration = 0.125;
+                                                        }
+                                                    }
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    Component.onCompleted: {
+                                                        if (Math.abs(minDurationValue - 0.125) < 0.001) {
+                                                            checked = true;
+                                                        }
+                                                    }
+                                                    contentItem: Text { text: parent.text; color: systemPalette.windowText; leftPadding: parent.indicator.width + 4; verticalAlignment: Text.AlignVCenter }
+                                                }
+                                            }
 
                                             // Dotted eighth
                                             Row {
@@ -710,7 +768,9 @@ MuseScore {
 
                                             RadioButton {
                                                 id: radioSelectionAdd
-                                                text: isSpanish ? "Rango seleccionado" : "Selected range"
+                                                text: hasDiscreteSelectionAdd ?
+                                                    (isSpanish ? "Notas seleccionadas" : "Selected notes") :
+                                                    (isSpanish ? "Rango seleccionado" : "Selected range")
                                                 enabled: hasSelectionAdd
                                                 checked: hasSelectionAdd && useSelectionAdd
                                                 onCheckedChanged: {
@@ -927,7 +987,9 @@ MuseScore {
                                     RadioButton {
                                         id: radioSelectionRemove
                                         height: 22
-                                        text: isSpanish ? "Rango seleccionado" : "Selected range"
+                                        text: hasDiscreteSelectionRemove ?
+                                            (isSpanish ? "Notas seleccionadas" : "Selected notes") :
+                                            (isSpanish ? "Rango seleccionado" : "Selected range")
                                         enabled: hasSelectionRemove
                                         checked: hasSelectionRemove && useSelectionRemove
                                         onCheckedChanged: {
@@ -1595,12 +1657,112 @@ MuseScore {
         return true;
     }
 
+    // Helper function to process a single chord for adding tremolo
+    function processChordAdd(chord, processedChords) {
+        // Skip if already processed (for discrete selection where same chord might appear multiple times)
+        if (processedChords && processedChords[chord]) return false;
+        if (processedChords) processedChords[chord] = true;
+
+        var processed = false;
+
+        // Rule 1: Long notes (>= minDuration) - add tremolo if no staccato
+        if (shouldAddTremolo(chord)) {
+            var isFirst = isFirstInTiedChain(chord);
+
+            // Set velocity to 65 if enabled
+            if (settingsAdd.setNoteVelocity) {
+                for (var i = 0; i < chord.notes.length; i++) {
+                    chord.notes[i].userVelocity = 65;
+                }
+            }
+
+            // Disable tied notes playback if enabled
+            if (settingsAdd.disableTiedNotes && !isFirst) {
+                for (var i = 0; i < chord.notes.length; i++) {
+                    chord.notes[i].play = false;
+                }
+            }
+
+            // Add tremolo symbol if enabled and not present
+            if (settingsAdd.addTremoloSymbols && !chord.tremolo) {
+                try {
+                    var tremolo = newElement(Element.TREMOLO_SINGLECHORD);
+                    if (tremolo) {
+                        tremolo.tremoloType = TremoloType.R32;
+
+                        if (settingsAdd.disableTremoloPlayback) {
+                            tremolo.play = false;
+                        }
+
+                        chord.add(tremolo);
+                    }
+                } catch (e) {
+                    console.log("Error adding tremolo: " + e);
+                }
+            }
+
+            // Disable ornament articulations (trills, etc.) if present and ornament disabling is enabled
+            if (settingsAdd.disableOrnaments && hasTrill(chord)) {
+                if (chord.articulations) {
+                    for (var i = 0; i < chord.articulations.length; i++) {
+                        var artic = chord.articulations[i];
+                        if (artic && artic.symbol) {
+                            var symId = artic.symbol;
+                            if (trillArticulations.indexOf(symId) !== -1) {
+                                console.log("LONG NOTE with tremolo: Disabling ornament articulation symId=" + symId);
+                                artic.play = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Disable ornament spanners (trill lines) if present and ornament disabling is enabled
+            if (settingsAdd.disableOrnaments) {
+                for (var i = 0; i < chord.notes.length; i++) {
+                    if (chord.notes[i].spannerForward) {
+                        for (var j = 0; j < chord.notes[i].spannerForward.length; j++) {
+                            var spanner = chord.notes[i].spannerForward[j];
+                            if (spanner && spanner.type === Element.TRILL) {
+                                console.log("LONG NOTE with tremolo: Disabling ornament spanner (trill line)");
+                                spanner.play = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            processed = true;
+        }
+        // Rule 2: Short notes (< minDuration) - disable velocity-increasing articulations
+        else if (isShortNote(chord) && settingsAdd.disableArticulations) {
+            if (chord.articulations) {
+                for (var i = 0; i < chord.articulations.length; i++) {
+                    var artic = chord.articulations[i];
+                    if (artic && artic.symbol) {
+                        var symId = artic.symbol;
+                        if (velocityIncreaseArticulations.indexOf(symId) !== -1) {
+                            console.log("SHORT NOTE: Disabling velocity-increasing articulation symId=" + symId);
+                            artic.play = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        return processed;
+    }
+
     // Process score for adding tremolo
     function processAddTremolo() {
         console.log("Processing score with settings:");
-        console.log("  minDuration=" + minDurationValue + ", addTremoloSymbols=" + settingsAdd.addTremoloSymbols + ", setNoteVelocity=" + settingsAdd.setNoteVelocity + ", disableTiedNotes=" + settingsAdd.disableTiedNotes + ", disableTremoloPlayback=" + settingsAdd.disableTremoloPlayback + ", disableDynamics=" + settingsAdd.disableDynamics + ", disableArticulations=" + settingsAdd.disableArticulations + ", disableOrnaments=" + settingsAdd.disableOrnaments + ", disableHairpins=" + settingsAdd.disableHairpins + ", useSelection=" + useSelectionAdd);
+        console.log("  minDuration=" + minDurationValue + ", addTremoloSymbols=" + settingsAdd.addTremoloSymbols + ", setNoteVelocity=" + settingsAdd.setNoteVelocity + ", disableTiedNotes=" + settingsAdd.disableTiedNotes + ", disableTremoloPlayback=" + settingsAdd.disableTremoloPlayback + ", disableDynamics=" + settingsAdd.disableDynamics + ", disableArticulations=" + settingsAdd.disableArticulations + ", disableOrnaments=" + settingsAdd.disableOrnaments + ", disableHairpins=" + settingsAdd.disableHairpins + ", useSelection=" + useSelectionAdd + ", hasDiscreteSelection=" + hasDiscreteSelectionAdd);
 
-        var useSelectionRange = hasSelectionAdd && useSelectionAdd;
+        // Check if there is a selection and if we should use it
+        var selection = curScore.selection;
+        var selectionHasElements = selection && selection.elements && selection.elements.length > 0;
+        var useSelectionRange = selectionHasElements && useSelectionAdd && !hasDiscreteSelectionAdd;
+        var useDiscreteSelection = selectionHasElements && useSelectionAdd && hasDiscreteSelectionAdd;
 
         // Build unified spanners cache (emulates curScore.spanners API when not available)
         var spannersCache = { spanners: [] };
@@ -1647,188 +1809,150 @@ MuseScore {
             var cursor = curScore.newCursor();
             var processedCount = 0;
             var hairpinsDisabled = 0;
+            var processedChords = {};  // Track processed chords to avoid duplicates
 
-            // Get selection bounds
-            var startTick, endTick;
-            if (useSelectionRange) {
-                cursor.rewind(Cursor.SELECTION_START);
-                startTick = cursor.segment ? cursor.segment.tick : 0;
-                cursor.rewind(Cursor.SELECTION_END);
-                endTick = cursor.segment ? cursor.segment.tick : curScore.lastSegment.tick + 1;
-                console.log("Processing selected range: tick " + startTick + " to " + endTick);
-            } else {
-                startTick = 0;
-                endTick = curScore.lastSegment.tick + 1;
-                console.log("Processing entire score: tick " + startTick + " to " + endTick);
-            }
+            // MODE 1: Discrete selection - process selected elements directly
+            if (useDiscreteSelection) {
+                console.log("Processing discrete selection: " + selection.elements.length + " elements");
 
-            // Build list of bandurria/laúd staff indices
-            var bandurriaLaudStaves = [];
-            for (var s = 0; s < curScore.nstaves; s++) {
-                var staffElement = curScore.staves[s];
-                if (isBandurriaOrLaud(staffElement)) {
-                    bandurriaLaudStaves.push(s);
-                    console.log("Staff " + s + " is bandurria/laúd");
-                }
-            }
+                for (var i = 0; i < selection.elements.length; i++) {
+                    var element = selection.elements[i];
 
-            if (bandurriaLaudStaves.length === 0) {
-                console.log("ERROR: No bandurria or laúd instruments found in score");
-                curScore.endCmd(false);
-                return;
-            }
-
-            // Iterate through bandurria/laúd staves
-            for (var staffIdx = 0; staffIdx < bandurriaLaudStaves.length; staffIdx++) {
-                var staff = bandurriaLaudStaves[staffIdx];
-                console.log("Processing staff " + staff);
-
-                for (var voice = 0; voice < 4; voice++) {
-                    cursor.staffIdx = staff;
-                    cursor.voice = voice;
-                    cursor.rewind(Cursor.SCORE_START);
-
-                    // Move to selection start
-                    while (cursor.segment && cursor.segment.tick < startTick) {
-                        cursor.next();
+                    // Handle both NOTE and CHORD elements
+                    var chord = null;
+                    if (element.type === Element.CHORD) {
+                        chord = element;
+                    } else if (element.type === Element.NOTE) {
+                        chord = element.parent;
                     }
 
-                    // Process elements in range
-                    while (cursor.segment && cursor.segment.tick < endTick) {
-                        if (cursor.element && cursor.element.type === Element.CHORD) {
-                            var chord = cursor.element;
+                    if (!chord || chord.type !== Element.CHORD) continue;
 
-                            // Rule 1: Long notes (>= minDuration) - add tremolo if no staccato
-                            if (shouldAddTremolo(chord)) {
-                                var isFirst = isFirstInTiedChain(chord);
+                    // Check if staff is bandurria/laúd
+                    var staffIdx = Math.floor(chord.track / 4);
+                    var staffElement = curScore.staves[staffIdx];
+                    if (!isBandurriaOrLaud(staffElement)) continue;
 
-                                // Set velocity to 65 if enabled
-                                if (settingsAdd.setNoteVelocity) {
-                                    for (var i = 0; i < chord.notes.length; i++) {
-                                        chord.notes[i].userVelocity = 65;
-                                    }
+                    // Process the chord
+                    if (processChordAdd(chord, processedChords)) {
+                        processedCount++;
+                    }
+                }
+
+                console.log("Processed " + processedCount + " chords from discrete selection");
+            }
+            // MODE 2: Range selection or entire score
+            else {
+                // Get selection bounds
+                var startTick, endTick;
+                var selectionStartStaff = 0;
+                var selectionEndStaff = curScore.nstaves;
+                if (useSelectionRange) {
+                    cursor.rewind(Cursor.SELECTION_START);
+                    startTick = cursor.segment ? cursor.segment.tick : 0;
+                    selectionStartStaff = cursor.staffIdx;
+                    cursor.rewind(Cursor.SELECTION_END);
+                    endTick = cursor.segment ? cursor.segment.tick : curScore.lastSegment.tick + 1;
+                    selectionEndStaff = cursor.staffIdx + 1;
+                    console.log("Processing selected range: tick " + startTick + " to " + endTick + ", staves " + selectionStartStaff + " to " + (selectionEndStaff - 1));
+                } else {
+                    startTick = 0;
+                    endTick = curScore.lastSegment.tick + 1;
+                    console.log("Processing entire score: tick " + startTick + " to " + endTick);
+                }
+
+                // Build list of bandurria/laúd staff indices (filtered by selection if applicable)
+                var bandurriaLaudStaves = [];
+                for (var s = 0; s < curScore.nstaves; s++) {
+                    // Skip staves outside selection range
+                    if (useSelectionRange && (s < selectionStartStaff || s >= selectionEndStaff)) {
+                        continue;
+                    }
+                    var staffElement = curScore.staves[s];
+                    if (isBandurriaOrLaud(staffElement)) {
+                        bandurriaLaudStaves.push(s);
+                        console.log("Staff " + s + " is bandurria/laúd");
+                    }
+                }
+
+                if (bandurriaLaudStaves.length === 0) {
+                    console.log("ERROR: No bandurria or laúd instruments found in score");
+                    curScore.endCmd(false);
+                    return;
+                }
+
+                // Iterate through bandurria/laúd staves
+                for (var staffIdx = 0; staffIdx < bandurriaLaudStaves.length; staffIdx++) {
+                    var staff = bandurriaLaudStaves[staffIdx];
+                    console.log("Processing staff " + staff);
+
+                    for (var voice = 0; voice < 4; voice++) {
+                        cursor.staffIdx = staff;
+                        cursor.voice = voice;
+                        cursor.rewind(Cursor.SCORE_START);
+
+                        // Move to selection start
+                        while (cursor.segment && cursor.segment.tick < startTick) {
+                            cursor.next();
+                        }
+
+                        // Process elements in range
+                        while (cursor.segment && cursor.segment.tick < endTick) {
+                            if (cursor.element && cursor.element.type === Element.CHORD) {
+                                var chord = cursor.element;
+                                if (processChordAdd(chord, processedChords)) {
+                                    processedCount++;
                                 }
+                            }
 
-                                // Disable tied notes playback if enabled
-                                if (settingsAdd.disableTiedNotes && !isFirst) {
-                                    for (var i = 0; i < chord.notes.length; i++) {
-                                        chord.notes[i].play = false;
-                                    }
-                                }
+                            // Disable dynamics if requested
+                            if (settingsAdd.disableDynamics && cursor.segment.annotations) {
+                                for (var i = 0; i < cursor.segment.annotations.length; i++) {
+                                    var annotation = cursor.segment.annotations[i];
+                                    if (!annotation || annotation.track === undefined)
+                                        continue;
 
-                                // Add tremolo symbol if enabled and not present
-                                if (settingsAdd.addTremoloSymbols && !chord.tremolo) {
-                                    try {
-                                        var tremolo = newElement(Element.TREMOLO_SINGLECHORD);
-                                        if (tremolo) {
-                                            tremolo.tremoloType = TremoloType.R32;
+                                    var elemStaff = Math.floor(annotation.track / 4);
+                                    if (bandurriaLaudStaves.indexOf(elemStaff) === -1)
+                                        continue;
 
-                                            if (settingsAdd.disableTremoloPlayback) {
-                                                tremolo.play = false;
-                                            }
-
-                                            chord.add(tremolo);
-                                        }
-                                    } catch (e) {
-                                        console.log("Error adding tremolo: " + e);
-                                    }
-                                }
-
-                                // Disable ornament articulations (trills, etc.) if present and ornament disabling is enabled
-                                if (settingsAdd.disableOrnaments && chord.articulations) {
-                                    for (var i = 0; i < chord.articulations.length; i++) {
-                                        var artic = chord.articulations[i];
-                                        if (artic && artic.symbol) {
-                                            var symId = artic.symbol;
-                                            if (trillArticulations.indexOf(symId) !== -1) {
-                                                console.log("LONG NOTE with tremolo: Disabling ornament articulation symId=" + symId);
-                                                artic.play = false;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Disable ornament spanners (trill lines) if present and ornament disabling is enabled
-                                if (settingsAdd.disableOrnaments) {
-                                    for (var i = 0; i < chord.notes.length; i++) {
-                                        if (chord.notes[i].spannerForward) {
-                                            for (var j = 0; j < chord.notes[i].spannerForward.length; j++) {
-                                                var spanner = chord.notes[i].spannerForward[j];
-                                                if (spanner && spanner.type === Element.TRILL) {
-                                                    console.log("LONG NOTE with tremolo: Disabling ornament spanner (trill line)");
-                                                    spanner.play = false;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                processedCount++;
-                            } else
-                            // Rule 2: Short notes (< minDuration) - disable velocity-increasing articulations
-                            if (isShortNote(chord) && settingsAdd.disableArticulations) {
-                                if (chord.articulations) {
-                                    for (var i = 0; i < chord.articulations.length; i++) {
-                                        var artic = chord.articulations[i];
-                                        if (artic && artic.symbol) {
-                                            var symId = artic.symbol;
-                                            if (velocityIncreaseArticulations.indexOf(symId) !== -1) {
-                                                console.log("SHORT NOTE: Disabling velocity-increasing articulation symId=" + symId);
-                                                artic.play = false;
-                                            }
-                                        }
+                                    if (annotation.type === Element.DYNAMIC || annotation.type === Element.EXPRESSION) {
+                                        annotation.play = false;
                                     }
                                 }
                             }
+
+                            cursor.next();
                         }
-
-                        // Disable dynamics if requested
-                        if (settingsAdd.disableDynamics && cursor.segment.annotations) {
-                            for (var i = 0; i < cursor.segment.annotations.length; i++) {
-                                var annotation = cursor.segment.annotations[i];
-                                if (!annotation || annotation.track === undefined)
-                                    continue;
-
-                                var elemStaff = Math.floor(annotation.track / 4);
-                                if (bandurriaLaudStaves.indexOf(elemStaff) === -1)
-                                    continue;
-
-                                if (annotation.type === Element.DYNAMIC || annotation.type === Element.EXPRESSION) {
-                                    annotation.play = false;
-                                }
-                            }
-                        }
-
-                        cursor.next();
                     }
                 }
-            }
 
-            // Process hairpins using unified spannersCache
-            if (settingsAdd.disableHairpins && spannersCache.spanners.length > 0) {
-                console.log("Processing " + spannersCache.spanners.length + " spanners...");
+                // Process hairpins using unified spannersCache
+                if (settingsAdd.disableHairpins && spannersCache.spanners.length > 0) {
+                    console.log("Processing " + spannersCache.spanners.length + " spanners...");
 
-                for (var i = 0; i < spannersCache.spanners.length; i++) {
-                    var spanner = spannersCache.spanners[i];
+                    for (var i = 0; i < spannersCache.spanners.length; i++) {
+                        var spanner = spannersCache.spanners[i];
 
-                    // Only process hairpins
-                    if (spanner.type !== Element.HAIRPIN) continue;
+                        // Only process hairpins
+                        if (spanner.type !== Element.HAIRPIN) continue;
 
-                    // Check if hairpin's track belongs to a bandurria/laúd staff
-                    var spannerStaff = Math.floor(spanner.track / 4);
-                    if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
+                        // Check if hairpin's track belongs to a bandurria/laúd staff
+                        var spannerStaff = Math.floor(spanner.track / 4);
+                        if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
 
-                    // Check if hairpin is in the selected range
-                    if (useSelectionRange) {
-                        var spannerTick = spanner.spannerTick ? spanner.spannerTick.ticks : spanner.tick;
-                        if (spannerTick < startTick || spannerTick >= endTick) continue;
+                        // Check if hairpin is in the selected range
+                        if (useSelectionRange) {
+                            var spannerTick = spanner.spannerTick ? spanner.spannerTick.ticks : spanner.tick;
+                            if (spannerTick < startTick || spannerTick >= endTick) continue;
+                        }
+
+                        spanner.play = false;
+                        hairpinsDisabled++;
                     }
 
-                    spanner.play = false;
-                    hairpinsDisabled++;
+                    console.log("Disabled " + hairpinsDisabled + " hairpins");
                 }
-
-                console.log("Disabled " + hairpinsDisabled + " hairpins");
             }
 
             console.log("Processed " + processedCount + " chords, disabled " + hairpinsDisabled + " hairpins");
@@ -1841,11 +1965,129 @@ MuseScore {
 
     // ===== Remove Tremolo Function =====
 
+    // Helper function to process a single chord for removing tremolo
+    // Returns an object with stats: { tremolosRemoved, notesRestored, articulationsRestored }
+    function processChordRemove(chord, processedChords) {
+        // Skip if already processed (for discrete selection where same chord might appear multiple times)
+        if (processedChords && processedChords[chord]) return { tremolosRemoved: 0, notesRestored: 0, articulationsRestored: 0 };
+        if (processedChords) processedChords[chord] = true;
+
+        var stats = { tremolosRemoved: 0, notesRestored: 0, articulationsRestored: 0 };
+
+        // Restore note properties
+        for (var n = 0; n < chord.notes.length; n++) {
+            var note = chord.notes[n];
+
+            if (settingsRemove.restoreVelocity) {
+                note.userVelocity = 0;
+            }
+
+            if (settingsRemove.restoreNotePlayback) {
+                note.play = true;
+            }
+
+            stats.notesRestored++;
+        }
+
+        // Remove tremolo if present and enabled
+        if (settingsRemove.removeTremolos) {
+            if (chord.tremoloSingleChord) {
+                try {
+                    removeElement(chord.tremoloSingleChord);
+                    stats.tremolosRemoved++;
+                } catch (e) {
+                    console.log("Error removing single-chord tremolo: " + e);
+                }
+            }
+
+            if (chord.tremoloTwoChord) {
+                try {
+                    removeElement(chord.tremoloTwoChord);
+                    stats.tremolosRemoved++;
+                } catch (e) {
+                    console.log("Error removing two-chord tremolo: " + e);
+                }
+            }
+        }
+
+        // Restore articulations playback if enabled
+        // ONLY restore velocity-increasing articulations on SHORT notes
+        if (settingsRemove.restoreArticulations && chord.articulations) {
+            if (isShortNote(chord)) {
+                // Short notes: restore ONLY velocity-increasing articulations
+                for (var i = 0; i < chord.articulations.length; i++) {
+                    var artic = chord.articulations[i];
+                    if (artic && artic.symbol) {
+                        var symId = artic.symbol;
+                        if (velocityIncreaseArticulations.indexOf(symId) !== -1) {
+                            console.log("SHORT NOTE: Restoring velocity-increasing articulation symId=" + symId);
+                            artic.play = true;
+                            stats.articulationsRestored++;
+                        }
+                    }
+                }
+            } else {
+                // Long notes: restore ALL articulations (but NOT ornaments - those are separate)
+                for (var i = 0; i < chord.articulations.length; i++) {
+                    var artic = chord.articulations[i];
+                    if (artic && artic.symbol) {
+                        var symId = artic.symbol;
+                        // Skip ornaments if they should be restored separately
+                        if (trillArticulations.indexOf(symId) !== -1) {
+                            continue;  // Handle ornaments separately below
+                        }
+                        artic.play = true;
+                        stats.articulationsRestored++;
+                    }
+                }
+            }
+        }
+
+        // Restore ornaments playback if enabled (separate from articulations)
+        if (settingsRemove.restoreOrnaments && chord.articulations) {
+            for (var i = 0; i < chord.articulations.length; i++) {
+                var artic = chord.articulations[i];
+                if (artic && artic.symbol) {
+                    var symId = artic.symbol;
+                    if (trillArticulations.indexOf(symId) !== -1) {
+                        console.log("Restoring ornament articulation symId=" + symId);
+                        artic.play = true;
+                        stats.articulationsRestored++;
+                    }
+                }
+            }
+        }
+
+        // Check for ornament spanners (trills) via note spanners if enabled
+        if (settingsRemove.restoreOrnaments) {
+            for (var i = 0; i < chord.notes.length; i++) {
+                if (chord.notes[i].spannerForward) {
+                    for (var j = 0; j < chord.notes[i].spannerForward.length; j++) {
+                        var spanner = chord.notes[i].spannerForward[j];
+                        if (spanner) {
+                            if (spanner.type === Element.TRILL) {
+                                console.log("Restoring ornament spanner (trill line)");
+                                spanner.play = true;
+                                stats.articulationsRestored++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return stats;
+    }
+
     function processRemoveTremolo() {
         console.log("Removing tremolo symbols and restoring playback settings...");
-        console.log("Options: removeTremolos=" + settingsRemove.removeTremolos + ", restoreVelocity=" + settingsRemove.restoreVelocity + ", restoreNotePlayback=" + settingsRemove.restoreNotePlayback + ", restoreDynamics=" + settingsRemove.restoreDynamics + ", restoreArticulations=" + settingsRemove.restoreArticulations + ", restoreOrnaments=" + settingsRemove.restoreOrnaments + ", restoreHairpins=" + settingsRemove.restoreHairpins + ", useSelection=" + useSelectionRemove);
+        console.log("Options: removeTremolos=" + settingsRemove.removeTremolos + ", restoreVelocity=" + settingsRemove.restoreVelocity + ", restoreNotePlayback=" + settingsRemove.restoreNotePlayback + ", restoreDynamics=" + settingsRemove.restoreDynamics + ", restoreArticulations=" + settingsRemove.restoreArticulations + ", restoreOrnaments=" + settingsRemove.restoreOrnaments + ", restoreHairpins=" + settingsRemove.restoreHairpins + ", useSelection=" + useSelectionRemove + ", hasDiscreteSelection=" + hasDiscreteSelectionRemove);
 
-        var useSelectionRange = hasSelectionRemove && useSelectionRemove;
+        // Check if there is a selection and if we should use it
+        var selection = curScore.selection;
+        var selectionHasElements = selection && selection.elements && selection.elements.length > 0;
+        var useSelectionRange = selectionHasElements && useSelectionRemove && !hasDiscreteSelectionRemove;
+        var useDiscreteSelection = selectionHasElements && useSelectionRemove && hasDiscreteSelectionRemove;
 
         // Build unified spanners cache (emulates curScore.spanners API when not available)
         var spannersCache = { spanners: [] };
@@ -1895,208 +2137,153 @@ MuseScore {
             var dynamicsRestored = 0;
             var articulationsRestored = 0;
             var hairpinsRestored = 0;
+            var processedChords = {};  // Track processed chords to avoid duplicates
 
-            // Get selection bounds
-            var startTick, endTick;
-            if (useSelectionRange) {
-                cursor.rewind(Cursor.SELECTION_START);
-                startTick = cursor.segment ? cursor.segment.tick : 0;
-                cursor.rewind(Cursor.SELECTION_END);
-                endTick = cursor.segment ? cursor.segment.tick : curScore.lastSegment.tick + 1;
-                console.log("Processing selected range: tick " + startTick + " to " + endTick);
-            } else {
-                startTick = 0;
-                endTick = curScore.lastSegment.tick + 1;
-                console.log("Processing entire score: tick " + startTick + " to " + endTick);
-            }
+            // MODE 1: Discrete selection - process selected elements directly
+            if (useDiscreteSelection) {
+                console.log("Processing discrete selection: " + selection.elements.length + " elements");
 
-            // Build list of bandurria/laúd staff indices
-            var bandurriaLaudStaves = [];
-            for (var s = 0; s < curScore.nstaves; s++) {
-                var staffElement = curScore.staves[s];
-                if (isBandurriaOrLaud(staffElement)) {
-                    bandurriaLaudStaves.push(s);
-                    console.log("Staff " + s + " is bandurria/laúd");
-                }
-            }
+                for (var i = 0; i < selection.elements.length; i++) {
+                    var element = selection.elements[i];
 
-            if (bandurriaLaudStaves.length === 0) {
-                console.log("ERROR: No bandurria or laúd instruments found in score");
-                curScore.endCmd(false);
-                return;
-            }
-
-            // Iterate through bandurria/laúd staves only
-            for (var staffIdx = 0; staffIdx < bandurriaLaudStaves.length; staffIdx++) {
-                var staff = bandurriaLaudStaves[staffIdx];
-                console.log("Processing staff " + staff);
-
-                for (var voice = 0; voice < 4; voice++) {
-                    cursor.staffIdx = staff;
-                    cursor.voice = voice;
-                    cursor.rewind(Cursor.SCORE_START);
-
-                    // Move to selection start
-                    while (cursor.segment && cursor.segment.tick < startTick) {
-                        cursor.next();
+                    // Handle both NOTE and CHORD elements
+                    var chord = null;
+                    if (element.type === Element.CHORD) {
+                        chord = element;
+                    } else if (element.type === Element.NOTE) {
+                        chord = element.parent;
                     }
 
-                    // Process elements in the selected range
-                    while (cursor.segment && cursor.segment.tick < endTick) {
-                        if (cursor.element && cursor.element.type === Element.CHORD) {
-                            var chord = cursor.element;
+                    if (!chord || chord.type !== Element.CHORD) continue;
 
-                            // Restore note properties
-                            for (var n = 0; n < chord.notes.length; n++) {
-                                var note = chord.notes[n];
+                    // Check if staff is bandurria/laúd
+                    var staffIdx = Math.floor(chord.track / 4);
+                    var staffElement = curScore.staves[staffIdx];
+                    if (!isBandurriaOrLaud(staffElement)) continue;
 
-                                if (settingsRemove.restoreVelocity) {
-                                    note.userVelocity = 0;
-                                }
+                    // Process the chord
+                    var stats = processChordRemove(chord, processedChords);
+                    tremolosRemoved += stats.tremolosRemoved;
+                    notesRestored += stats.notesRestored;
+                    articulationsRestored += stats.articulationsRestored;
+                }
 
-                                if (settingsRemove.restoreNotePlayback) {
-                                    note.play = true;
-                                }
+                console.log("Processed chords from discrete selection");
+            }
+            // MODE 2: Range selection or entire score
+            else {
+                // Get selection bounds
+                var startTick, endTick;
+                var selectionStartStaff = 0;
+                var selectionEndStaff = curScore.nstaves;
+                if (useSelectionRange) {
+                    cursor.rewind(Cursor.SELECTION_START);
+                    startTick = cursor.segment ? cursor.segment.tick : 0;
+                    selectionStartStaff = cursor.staffIdx;
+                    cursor.rewind(Cursor.SELECTION_END);
+                    endTick = cursor.segment ? cursor.segment.tick : curScore.lastSegment.tick + 1;
+                    selectionEndStaff = cursor.staffIdx + 1;
+                    console.log("Processing selected range: tick " + startTick + " to " + endTick + ", staves " + selectionStartStaff + " to " + (selectionEndStaff - 1));
+                } else {
+                    startTick = 0;
+                    endTick = curScore.lastSegment.tick + 1;
+                    console.log("Processing entire score: tick " + startTick + " to " + endTick);
+                }
 
-                                notesRestored++;
-                            }
+                // Build list of bandurria/laúd staff indices (filtered by selection if applicable)
+                var bandurriaLaudStaves = [];
+                for (var s = 0; s < curScore.nstaves; s++) {
+                    // Skip staves outside selection range
+                    if (useSelectionRange && (s < selectionStartStaff || s >= selectionEndStaff)) {
+                        continue;
+                    }
+                    var staffElement = curScore.staves[s];
+                    if (isBandurriaOrLaud(staffElement)) {
+                        bandurriaLaudStaves.push(s);
+                        console.log("Staff " + s + " is bandurria/laúd");
+                    }
+                }
 
-                            // Remove tremolo if present and enabled
-                            if (settingsRemove.removeTremolos) {
-                                if (chord.tremoloSingleChord) {
-                                    try {
-                                        removeElement(chord.tremoloSingleChord);
-                                        tremolosRemoved++;
-                                    } catch (e) {
-                                        console.log("Error removing single-chord tremolo: " + e);
-                                    }
-                                }
+                if (bandurriaLaudStaves.length === 0) {
+                    console.log("ERROR: No bandurria or laúd instruments found in score");
+                    curScore.endCmd(false);
+                    return;
+                }
 
-                                if (chord.tremoloTwoChord) {
-                                    try {
-                                        removeElement(chord.tremoloTwoChord);
-                                        tremolosRemoved++;
-                                    } catch (e) {
-                                        console.log("Error removing two-chord tremolo: " + e);
-                                    }
-                                }
-                            }
+                // Iterate through bandurria/laúd staves only
+                for (var staffIdx = 0; staffIdx < bandurriaLaudStaves.length; staffIdx++) {
+                    var staff = bandurriaLaudStaves[staffIdx];
+                    console.log("Processing staff " + staff);
 
-                            // Restore articulations playback if enabled
-                            // ONLY restore velocity-increasing articulations on SHORT notes
-                            if (settingsRemove.restoreArticulations && chord.articulations) {
-                                if (isShortNote(chord)) {
-                                    // Short notes: restore ONLY velocity-increasing articulations
-                                    for (var i = 0; i < chord.articulations.length; i++) {
-                                        var artic = chord.articulations[i];
-                                        if (artic && artic.symbol) {
-                                            var symId = artic.symbol;
-                                            if (velocityIncreaseArticulations.indexOf(symId) !== -1) {
-                                                console.log("SHORT NOTE: Restoring velocity-increasing articulation symId=" + symId);
-                                                artic.play = true;
-                                                articulationsRestored++;
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // Long notes: restore ALL articulations (but NOT ornaments - those are separate)
-                                    for (var i = 0; i < chord.articulations.length; i++) {
-                                        var artic = chord.articulations[i];
-                                        if (artic && artic.symbol) {
-                                            var symId = artic.symbol;
-                                            // Skip ornaments if they should be restored separately
-                                            if (trillArticulations.indexOf(symId) !== -1) {
-                                                continue;  // Handle ornaments separately below
-                                            }
-                                            artic.play = true;
-                                            articulationsRestored++;
-                                        }
-                                    }
-                                }
-                            }
+                    for (var voice = 0; voice < 4; voice++) {
+                        cursor.staffIdx = staff;
+                        cursor.voice = voice;
+                        cursor.rewind(Cursor.SCORE_START);
 
-                            // Restore ornaments playback if enabled (separate from articulations)
-                            if (settingsRemove.restoreOrnaments && chord.articulations) {
-                                for (var i = 0; i < chord.articulations.length; i++) {
-                                    var artic = chord.articulations[i];
-                                    if (artic && artic.symbol) {
-                                        var symId = artic.symbol;
-                                        if (trillArticulations.indexOf(symId) !== -1) {
-                                            console.log("Restoring ornament articulation symId=" + symId);
-                                            artic.play = true;
-                                            articulationsRestored++;
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Check for ornament spanners (trills) via note spanners if enabled
-                            if (settingsRemove.restoreOrnaments) {
-                                for (var i = 0; i < chord.notes.length; i++) {
-                                    if (chord.notes[i].spannerForward) {
-                                        for (var j = 0; j < chord.notes[i].spannerForward.length; j++) {
-                                            var spanner = chord.notes[i].spannerForward[j];
-                                            if (spanner) {
-                                                if (spanner.type === Element.TRILL) {
-                                                    console.log("Restoring ornament spanner (trill line)");
-                                                    spanner.play = true;
-                                                    articulationsRestored++;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        // Move to selection start
+                        while (cursor.segment && cursor.segment.tick < startTick) {
+                            cursor.next();
                         }
 
-                        // Restore dynamics in annotations if enabled
-                        if (cursor.segment.annotations) {
-                            for (var i = 0; i < cursor.segment.annotations.length; i++) {
-                                var annotation = cursor.segment.annotations[i];
-                                if (!annotation || annotation.track === undefined)
-                                    continue;
+                        // Process elements in the selected range
+                        while (cursor.segment && cursor.segment.tick < endTick) {
+                            if (cursor.element && cursor.element.type === Element.CHORD) {
+                                var chord = cursor.element;
+                                var stats = processChordRemove(chord, processedChords);
+                                tremolosRemoved += stats.tremolosRemoved;
+                                notesRestored += stats.notesRestored;
+                                articulationsRestored += stats.articulationsRestored;
+                            }
 
-                                var elemStaff = Math.floor(annotation.track / 4);
-                                if (bandurriaLaudStaves.indexOf(elemStaff) === -1)
-                                    continue;
+                            // Restore dynamics in annotations if enabled
+                            if (cursor.segment.annotations) {
+                                for (var i = 0; i < cursor.segment.annotations.length; i++) {
+                                    var annotation = cursor.segment.annotations[i];
+                                    if (!annotation || annotation.track === undefined)
+                                        continue;
 
-                                if (settingsRemove.restoreDynamics && (annotation.type === Element.DYNAMIC || annotation.type === Element.EXPRESSION)) {
-                                    annotation.play = true;
-                                    dynamicsRestored++;
+                                    var elemStaff = Math.floor(annotation.track / 4);
+                                    if (bandurriaLaudStaves.indexOf(elemStaff) === -1)
+                                        continue;
+
+                                    if (settingsRemove.restoreDynamics && (annotation.type === Element.DYNAMIC || annotation.type === Element.EXPRESSION)) {
+                                        annotation.play = true;
+                                        dynamicsRestored++;
+                                    }
                                 }
                             }
+
+                            cursor.next();
+                        }
+                    }
+                }
+
+                // Process hairpins using unified spannersCache
+                if (settingsRemove.restoreHairpins && spannersCache.spanners.length > 0) {
+                    console.log("Processing " + spannersCache.spanners.length + " spanners...");
+
+                    for (var i = 0; i < spannersCache.spanners.length; i++) {
+                        var spanner = spannersCache.spanners[i];
+
+                        // Only process hairpins
+                        if (spanner.type !== Element.HAIRPIN) continue;
+
+                        // Check if hairpin's track belongs to a bandurria/laúd staff
+                        var spannerStaff = Math.floor(spanner.track / 4);
+                        if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
+
+                        // Check if hairpin is in the selected range
+                        if (useSelectionRange) {
+                            var spannerTick = spanner.spannerTick ? spanner.spannerTick.ticks : spanner.tick;
+                            if (spannerTick < startTick || spannerTick >= endTick) continue;
                         }
 
-                        cursor.next();
-                    }
-                }
-            }
-
-            // Process hairpins using unified spannersCache
-            if (settingsRemove.restoreHairpins && spannersCache.spanners.length > 0) {
-                console.log("Processing " + spannersCache.spanners.length + " spanners...");
-
-                for (var i = 0; i < spannersCache.spanners.length; i++) {
-                    var spanner = spannersCache.spanners[i];
-
-                    // Only process hairpins
-                    if (spanner.type !== Element.HAIRPIN) continue;
-
-                    // Check if hairpin's track belongs to a bandurria/laúd staff
-                    var spannerStaff = Math.floor(spanner.track / 4);
-                    if (bandurriaLaudStaves.indexOf(spannerStaff) === -1) continue;
-
-                    // Check if hairpin is in the selected range
-                    if (useSelectionRange) {
-                        var spannerTick = spanner.spannerTick ? spanner.spannerTick.ticks : spanner.tick;
-                        if (spannerTick < startTick || spannerTick >= endTick) continue;
+                        spanner.play = true;
+                        hairpinsRestored++;
                     }
 
-                    spanner.play = true;
-                    hairpinsRestored++;
+                    console.log("Restored " + hairpinsRestored + " hairpins");
                 }
-
-                console.log("Restored " + hairpinsRestored + " hairpins");
             }
 
             console.log("Removed " + tremolosRemoved + " tremolo symbols");
