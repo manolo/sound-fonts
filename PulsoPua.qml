@@ -7,8 +7,8 @@ import FileIO 3.0
 MuseScore {
     id: plugin
     title: "Pulso y Púa"
-    description: "Configuración de Tremolos y SoundFonts para bandurria y laúd / Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.6"
+    description: "Configuración de Tremolos y SoundFonts para bandurria y laúd -- Tremolo and SoundFont configuration for bandurria and lute"
+    version: "2.0.7"
     pluginType: "dialog"
     width: 650
     height: 750
