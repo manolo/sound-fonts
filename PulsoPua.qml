@@ -8,7 +8,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd -- Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.7"
+    version: "2.0.9"
     pluginType: "dialog"
     width: 650
     height: 750
@@ -2936,12 +2936,26 @@ MuseScore {
                 filesStatus[filename].downloadComplete = false;
                 filesStatus[filename].downloadError = true;
                 forceFilesStatusUpdate();
-                downloadStatus = isSpanish ? "✗ Error de descarga (código " + exitCode + ")\nArchivo: " + filename : "✗ Download error (code " + exitCode + ")\nFile: " + filename;
+                var errorMsg;
+                if (exitCode === 35) {
+                    // SSL/TLS connection error
+                    errorMsg = isSpanish
+                        ? "✗ Error SSL (código 35) descargando " + filename + "\n\nPosibles soluciones:\n- Verifica tu conexión a Internet\n- Si usas proxy/VPN, desactívalo temporalmente\n- Ejecuta en CMD: curl --ssl-no-revoke -L -o test.txt https://raw.githubusercontent.com\n- Actualiza Windows y los certificados del sistema"
+                        : "✗ SSL error (code 35) downloading " + filename + "\n\nPossible solutions:\n- Check your Internet connection\n- If using proxy/VPN, disable it temporarily\n- Run in CMD: curl --ssl-no-revoke -L -o test.txt https://raw.githubusercontent.com\n- Update Windows and system certificates";
+                } else {
+                    errorMsg = isSpanish ? "✗ Error de descarga (código " + exitCode + ")\nArchivo: " + filename : "✗ Download error (code " + exitCode + ")\nFile: " + filename;
+                }
+                downloadStatus = errorMsg;
             }
         });
 
         // Use curl to download (available on macOS/Linux, and modern Windows 10+)
-        process.startWithArgs("curl", ["-L", "-o", targetPath, fileUrl]);
+        // On Windows, add --ssl-no-revoke to avoid SSL certificate revocation check failures (error 35)
+        var args = ["-L", "-o", targetPath, fileUrl];
+        if (Qt.platform.os === "windows") {
+            args.unshift("--ssl-no-revoke");
+        }
+        process.startWithArgs("curl", args);
     }
 
     function getCurlInstallInstructions() {
@@ -3036,7 +3050,12 @@ MuseScore {
         });
 
         // Use curl with HEAD request to get Content-Length
-        process.startWithArgs("curl", ["-sLI", pluginRemoteUrl]);
+        // On Windows, add --ssl-no-revoke to avoid SSL certificate revocation check failures (error 35)
+        var curlArgs = ["-sLI", pluginRemoteUrl];
+        if (Qt.platform.os === "windows") {
+            curlArgs.unshift("--ssl-no-revoke");
+        }
+        process.startWithArgs("curl", curlArgs);
     }
 
     onRun: {
