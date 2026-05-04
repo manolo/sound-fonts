@@ -1,5 +1,5 @@
-# Pulso y Púa - Fuentes de Sonido y Plugin de MuseScore
-Fuentes de sonido y plugin de automatización para Orquesta de Pulso y Púa.
+# Pulso y Púa - Fuentes de Sonido y Herramientas de MuseScore
+Fuentes de sonido, plugin de automatización de trémolo y extensión de extracción de letras para Orquesta de Pulso y Púa.
 
 🇬🇧 [**Read in English**](README.md)
 
@@ -17,6 +17,9 @@ Fuentes de sonido y plugin de automatización para Orquesta de Pulso y Púa.
   - [Uso](#uso)
   - [Atajo de Teclado](#atajo-de-teclado)
   - [Notas Importantes](#notas-importantes)
+- [Lyrics Extractor](#lyrics-extractor)
+  - [Características](#características-de-lyrics-extractor)
+  - [Instalación](#instalación-de-lyrics-extractor)
 
 
 ## Fuentes de Sonido
@@ -26,6 +29,7 @@ Fuentes de sonido y plugin de automatización para Orquesta de Pulso y Púa.
 - [Laud.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud.sf2) Fuente de sonido para Laúd, tiene solo un canal con sonidos picados y sin trémolo
 - [Laud-Con-Tremolo.sf2](https://github.com/manolo/sound-fonts/raw/main/Laud-Con-Tremolo.sf2) Fuente de sonido para Laúd, tiene un canal, para seleccionar sonidos picados usa velocidades 1-64, y para trémolo 65-127
 - [Guitarra-Clasica.sf2](https://github.com/manolo/sound-fonts/raw/main/Guitarra-Clasica.sf2) Fuente de sonido para Guitarra Clásica Española.
+- [Laudin.sf2](https://github.com/manolo/sound-fonts/raw/main/Laudin.sf2) Fuente de sonido para Laudín (laúd pequeño), solo sonidos picados.
 
 
 ## Plugin de MuseScore
@@ -204,6 +208,34 @@ El plugin te permite:
 - Mantener símbolos de trémolo solo visuales (desactivar reproducción de trémolo)
 
 
+## Lyrics Extractor
+
+Una extensión de MuseScore 4 que extrae letras con acordes alineados de partituras musicales y genera texto formateado y PDF, ideal para cancioneros, hojas de ensayo y cifrados.
+
+<img src="images/lyrics-extractor-video.gif" alt="Demo de Lyrics Extractor" width="600">
+
+### Características de Lyrics Extractor
+
+- **Letras con acordes alineados**: extrae las letras del pentagrama de melodía y los acordes del acompañamiento, manteniéndolos perfectamente alineados
+- **Verificación y corrección automática**: detecta y corrige formato de sinalefas, cadenas silábicas rotas, problemas de sincronización de acordes e hifenes manuales
+- **Manejo de repeticiones y estructura**: procesa signos de repetición, voltas, D.S., D.C., Coda, Fine y secciones con múltiples estrofas
+- **Marcadores de sección**: reconoce etiquetas de texto de sistema (INTRO, SOLISTA, ESTRIBILLO) y marcas de ensayo como divisores de sección
+- **Modo solo acordes**: para partituras instrumentales sin letra, muestra progresiones de acordes estructuradas por secciones y barras de compás
+- **Diagramas de trastes**: extrae diagramas de acordes de guitarra de marcos FBox y los renderiza en el encabezado del PDF
+- **Generación de PDF**: crea PDFs listos para imprimir en A4 con acordes en color, alineación monoespaciada, ajuste automático a una página (opcional), números de línea y encabezados/pies de página
+- **Notación solfeo y anglosajona**: sigue la configuración de cifrado de la partitura (Do-Re-Mi o C-D-E)
+- **Herramienta CLI**: el mismo motor de extracción disponible como herramienta de línea de comandos Node.js
+
+<img src="images/lyrics-extractor-txt-pdf.png" alt="Salida de Texto y PDF de Lyrics Extractor" width="600">
+
+<img src="images/lyrics-extractor-pdf.png" alt="Salida PDF de Lyrics Extractor" width="600">
+
+### Instalación de Lyrics Extractor
+
+1. **Descargar**: [lyrics-extractor.mext](https://github.com/manolo/sound-fonts/raw/main/lyrics-extractor.mext)
+2. **Instalar**: arrastra el archivo `.mext` sobre MuseScore 4 (o haz doble clic). La extensión aparecerá en la barra de herramientas y en el menú de Extensiones.
+
+
 ### Soporte
 
 Para problemas, preguntas o contribuciones:
@@ -211,6 +243,6 @@ Para problemas, preguntas o contribuciones:
 - **Foro de MuseScore**: [Discutir en MuseScore.org](https://musescore.org/en/user/46235)
 
 
-**© 2025 - Manolo Carrasco (do2tis)**
+**© 2026 - Manolo Carrasco (do2tis)**
 
 
