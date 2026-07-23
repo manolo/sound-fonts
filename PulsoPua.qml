@@ -1,6 +1,7 @@
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.3
+import QtQuick.Window 2.2
 import MuseScore 3.0
 import FileIO 3.0
 
@@ -8,7 +9,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd -- Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.9"
+    version: "2.0.10"
     pluginType: "dialog"
     width: 650
     height: 750
@@ -167,6 +168,11 @@ MuseScore {
     }
 
     Component.onCompleted: {
+        // Ensure the dialog fits on small screens (e.g. 1366x768) so the bottom buttons stay visible
+        if (Screen.desktopAvailableHeight && plugin.height > Screen.desktopAvailableHeight - 40) {
+            plugin.height = Screen.desktopAvailableHeight - 40;
+        }
+
         // Detect user language
         var locale = Qt.locale();
         var language = locale.name.substring(0, 2);
@@ -413,7 +419,11 @@ MuseScore {
                         id: addTremoloContent
 
                         ScrollView {
-                            anchors.fill: parent
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: addTremoloNote.top
+                            anchors.bottomMargin: 5
                             clip: true
 
                             Column {
@@ -875,15 +885,17 @@ MuseScore {
 
                         // Note at bottom
                         Text {
+                            id: addTremoloNote
                             text: isSpanish ? "NOTA: Solo se procesarán instrumentos de bandurria y laúd" : "NOTE: Will only process bandurria and laud instruments"
                             font.pixelSize: 12
                             font.italic: true
                             wrapMode: Text.WordWrap
-                            width: parent.width - 30
+                            width: parent.width - 10
                             color: systemPalette.windowText
                             anchors.bottom: parent.bottom
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottomMargin: 10
+                            anchors.left: parent.left
+                            anchors.leftMargin: 5
+                            anchors.bottomMargin: 0
                         }
                     }
 
@@ -892,7 +904,11 @@ MuseScore {
                         id: removeTremoloContent
 
                         ScrollView {
-                            anchors.fill: parent
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: removeTremoloNote.top
+                            anchors.bottomMargin: 5
                             clip: true
 
                             Column {
@@ -1016,15 +1032,17 @@ MuseScore {
 
                         // Note at bottom
                         Text {
+                            id: removeTremoloNote
                             text: isSpanish ? "NOTA: Solo se procesarán instrumentos de bandurria y laúd" : "NOTE: Will only process bandurria and laud instruments"
                             font.pixelSize: 12
                             font.italic: true
                             wrapMode: Text.WordWrap
-                            width: parent.width - 30
+                            width: parent.width - 10
                             color: systemPalette.windowText
                             anchors.bottom: parent.bottom
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottomMargin: 10
+                            anchors.left: parent.left
+                            anchors.leftMargin: 5
+                            anchors.bottomMargin: 0
                         }
                     }
 
