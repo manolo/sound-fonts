@@ -1,5 +1,5 @@
 # Pulso y Púa Sound Fonts & MuseScore Tools
-Sound Fonts, tremolo automation plugin, and lyrics extraction extension for Spanish Plectro Orchestra (Orquesta de Pulso y Púa).
+Sound Fonts and a tremolo automation plugin for Spanish Plectro Orchestra (Orquesta de Pulso y Púa).
 
 🇪🇸 [**Leer en español**](README.es.md)
 
@@ -17,9 +17,6 @@ Sound Fonts, tremolo automation plugin, and lyrics extraction extension for Span
   - [Usage](#usage)
   - [Keyboard Shortcut](#keyboard-shortcut)
   - [Important Notes](#important-notes)
-- [Lyrics Extractor](#lyrics-extractor)
-  - [Features](#lyrics-extractor-features)
-  - [Installation](#lyrics-extractor-installation)
 
 
 ## Sound Fonts
@@ -208,35 +205,13 @@ The plugin allows you to:
 - Keep tremolo symbols visual-only (disable tremolo playback)
 
 
-## Lyrics Extractor
+## Also for plectro arrangers
 
-A MuseScore 4 extension that extracts lyrics with aligned chord symbols from musical scores and generates formatted text and PDF output, suitable for songbooks, rehearsal sheets, and chord charts.
-
-<img src="images/lyrics-extractor-video.gif" alt="Lyrics Extractor Demo" width="600">
-
-### Lyrics Extractor Features
-
-- **Lyrics with chord alignment**: extracts lyrics from the melody staff and chord symbols from the accompaniment, keeping them perfectly aligned
-- **Score health check and auto-fix**: detects and corrects synalepha formatting, broken syllabic chains, chord sync issues, and manual hyphens
-- **Repeat and structure handling**: processes repeat signs, voltas, D.S., D.C., Coda, Fine, and multi-verse sections
-- **Section markers**: recognizes system text labels (INTRO, SOLISTA, ESTRIBILLO) and rehearsal marks as section dividers
-- **Chord-only mode**: for instrumental scores without lyrics, shows chord progressions structured by sections and barlines
-- **Fretboard diagrams**: extracts guitar chord diagrams from FBox frames and renders them in the PDF header
-- **PDF generation**: creates print-ready A4 PDFs with chords in color, monospace alignment, optional auto-fit to one page, line numbers, and headers/footers
-- **Solfeo and anglo notation**: follows the score's chord spelling setting (Do-Re-Mi or C-D-E)
-- **CLI tool**: the same extraction engine is also available as a Node.js command-line tool
-
-<img src="images/lyrics-extractor-txt-pdf.png" alt="Lyrics Extractor Text and PDF Output" width="600">
-
-<img src="images/lyrics-extractor-pdf.png" alt="Lyrics Extractor PDF Output" width="600">
-
-### Lyrics Extractor Installation
-
-1. **Download**: [lyrics-extractor.mext](https://github.com/manolo/sound-fonts/raw/main/lyrics-extractor.mext)
-2. **Install**: drag the `.mext` file onto MuseScore 4 (or double-click it). The extension appears in the toolbar and the Extensions menu.
+Lyrics and chords extracted from a score, as a rehearsal sheet or a PDF songbook:
+[manolo/lyrics-extractor](https://github.com/manolo/lyrics-extractor).
 
 
-### Support
+## Support
 
 For issues, questions, or contributions:
 - **GitHub Issues**: [Report a bug or request a feature](https://github.com/manolo/sound-fonts/issues)

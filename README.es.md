@@ -1,5 +1,5 @@
 # Pulso y Púa - Fuentes de Sonido y Herramientas de MuseScore
-Fuentes de sonido, plugin de automatización de trémolo y extensión de extracción de letras para Orquesta de Pulso y Púa.
+Fuentes de sonido y plugin de automatización de trémolo para Orquesta de Pulso y Púa.
 
 🇬🇧 [**Read in English**](README.md)
 
@@ -17,9 +17,6 @@ Fuentes de sonido, plugin de automatización de trémolo y extensión de extracc
   - [Uso](#uso)
   - [Atajo de Teclado](#atajo-de-teclado)
   - [Notas Importantes](#notas-importantes)
-- [Lyrics Extractor](#lyrics-extractor)
-  - [Características](#características-de-lyrics-extractor)
-  - [Instalación](#instalación-de-lyrics-extractor)
 
 
 ## Fuentes de Sonido
@@ -208,35 +205,13 @@ El plugin te permite:
 - Mantener símbolos de trémolo solo visuales (desactivar reproducción de trémolo)
 
 
-## Lyrics Extractor
+## También para arreglistas de pulso y púa
 
-Una extensión de MuseScore 4 que extrae letras con acordes alineados de partituras musicales y genera texto formateado y PDF, ideal para cancioneros, hojas de ensayo y cifrados.
-
-<img src="images/lyrics-extractor-video.gif" alt="Demo de Lyrics Extractor" width="600">
-
-### Características de Lyrics Extractor
-
-- **Letras con acordes alineados**: extrae las letras del pentagrama de melodía y los acordes del acompañamiento, manteniéndolos perfectamente alineados
-- **Verificación y corrección automática**: detecta y corrige formato de sinalefas, cadenas silábicas rotas, problemas de sincronización de acordes e hifenes manuales
-- **Manejo de repeticiones y estructura**: procesa signos de repetición, voltas, D.S., D.C., Coda, Fine y secciones con múltiples estrofas
-- **Marcadores de sección**: reconoce etiquetas de texto de sistema (INTRO, SOLISTA, ESTRIBILLO) y marcas de ensayo como divisores de sección
-- **Modo solo acordes**: para partituras instrumentales sin letra, muestra progresiones de acordes estructuradas por secciones y barras de compás
-- **Diagramas de trastes**: extrae diagramas de acordes de guitarra de marcos FBox y los renderiza en el encabezado del PDF
-- **Generación de PDF**: crea PDFs listos para imprimir en A4 con acordes en color, alineación monoespaciada, ajuste automático a una página (opcional), números de línea y encabezados/pies de página
-- **Notación solfeo y anglosajona**: sigue la configuración de cifrado de la partitura (Do-Re-Mi o C-D-E)
-- **Herramienta CLI**: el mismo motor de extracción disponible como herramienta de línea de comandos Node.js
-
-<img src="images/lyrics-extractor-txt-pdf.png" alt="Salida de Texto y PDF de Lyrics Extractor" width="600">
-
-<img src="images/lyrics-extractor-pdf.png" alt="Salida PDF de Lyrics Extractor" width="600">
-
-### Instalación de Lyrics Extractor
-
-1. **Descargar**: [lyrics-extractor.mext](https://github.com/manolo/sound-fonts/raw/main/lyrics-extractor.mext)
-2. **Instalar**: arrastra el archivo `.mext` sobre MuseScore 4 (o haz doble clic). La extensión aparecerá en la barra de herramientas y en el menú de Extensiones.
+Letras y acordes extraídos de una partitura, como hoja de ensayo o cancionero en PDF:
+[manolo/lyrics-extractor](https://github.com/manolo/lyrics-extractor).
 
 
-### Soporte
+## Soporte
 
 Para problemas, preguntas o contribuciones:
 - **GitHub Issues**: [Reportar un error o solicitar una característica](https://github.com/manolo/sound-fonts/issues)
