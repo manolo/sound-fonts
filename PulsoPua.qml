@@ -9,7 +9,7 @@ MuseScore {
     id: plugin
     title: "Pulso y Púa"
     description: "Configuración de Tremolos y SoundFonts para bandurria y laúd -- Tremolo and SoundFont configuration for bandurria and lute"
-    version: "2.0.10"
+    version: "2.0.11"
     pluginType: "dialog"
     width: 650
     height: 750
@@ -20,6 +20,8 @@ MuseScore {
 
     // Add Tremolo properties
     property var minDurationValue: 0.375
+    // Keys of notes whose whole tied chain reaches minDurationValue (filled before adding tremolos)
+    property var longTiedNotes: ({})
     property bool hasSelectionAdd: false
     property bool hasDiscreteSelectionAdd: false  // Individual notes selected (Ctrl+click)
     property bool useSelectionAdd: false
@@ -1640,8 +1642,7 @@ MuseScore {
         if (!chord || !chord.duration)
             return false;
 
-        var durationValue = chord.duration.numerator / chord.duration.denominator;
-        if (durationValue < (minDurationValue - 0.001)) {
+        if (isShortNote(chord)) {
             return false;
         }
 
@@ -1652,22 +1653,108 @@ MuseScore {
         return true;
     }
 
-    // Function to check if note is short (below duration threshold)
+    // Function to check if note is short (below duration threshold), counting the whole tied chain
     function isShortNote(chord) {
         if (!chord || !chord.duration)
             return false;
 
-        var durationValue = chord.duration.numerator / chord.duration.denominator;
-        return durationValue < (minDurationValue - 0.001);
+        if (chordDurationValue(chord) >= (minDurationValue - 0.001))
+            return false;
+
+        if (chord.notes) {
+            for (var i = 0; i < chord.notes.length; i++) {
+                if (longTiedNotes[noteKey(chord.notes[i])])
+                    return false;
+            }
+        }
+
+        return true;
     }
 
-    // Function to check if this chord is the first in a tied chain
+    function chordDurationValue(chord) {
+        return chord.duration.numerator / chord.duration.denominator;
+    }
+
+    // Stable identifier for a note: track, tick, pitch (plus grace marker)
+    function noteKey(note) {
+        var chord = note.parent;
+        var grace = "";
+        var seg = chord.parent;
+        while (seg && seg.type !== Element.SEGMENT) {
+            grace = "g";
+            seg = seg.parent;
+        }
+        return note.track + ":" + (seg ? seg.tick : -1) + ":" + note.pitch + grace;
+    }
+
+    // Mark every note belonging to a tied chain whose total duration reaches minDurationValue.
+    // Chains are walked backwards from their last note through tieBack.startNote, which also
+    // crosses barlines and partial ties at repeats (the start of a repeated section points back
+    // to the note before the backward repeat).
+    function buildLongTiedNotes(staves) {
+        var marks = {};
+        var cursor = curScore.newCursor();
+
+        for (var s = 0; s < staves.length; s++) {
+            for (var voice = 0; voice < 4; voice++) {
+                cursor.staffIdx = staves[s];
+                cursor.voice = voice;
+                cursor.rewind(Cursor.SCORE_START);
+
+                while (cursor.segment) {
+                    var el = cursor.element;
+                    if (el && el.type === Element.CHORD) {
+                        for (var i = 0; i < el.notes.length; i++) {
+                            var note = el.notes[i];
+                            var tf = note.tieForward;
+                            // Only start from the last note of a chain that has at least one tie back
+                            if (!note.tieBack || (tf && tf.endNote))
+                                continue;
+
+                            var keys = [];
+                            var seen = {};
+                            var total = 0;
+                            var n = note;
+                            while (n) {
+                                var key = noteKey(n);
+                                if (seen[key])
+                                    break;
+                                seen[key] = true;
+                                keys.push(key);
+                                total += chordDurationValue(n.parent);
+                                n = n.tieBack ? n.tieBack.startNote : null;
+                            }
+
+                            if (total >= (minDurationValue - 0.001)) {
+                                for (var k = 0; k < keys.length; k++) {
+                                    marks[keys[k]] = true;
+                                }
+                            }
+                        }
+                    }
+                    cursor.next();
+                }
+            }
+        }
+
+        return marks;
+    }
+
+    // Function to check if this chord is the first in a tied chain.
+    // A partial tie coming from a backward repeat does not count: the first time
+    // through the repeat that note is attacked, so it must keep sounding.
     function isFirstInTiedChain(chord) {
         if (!chord || !chord.notes)
             return true;
 
         for (var i = 0; i < chord.notes.length; i++) {
-            if (chord.notes[i].tieBack) {
+            var note = chord.notes[i];
+            var tb = note.tieBack;
+            if (!tb)
+                continue;
+            var prev = tb.startNote;
+            var prevEnd = prev && prev.tieForward ? prev.tieForward.endNote : null;
+            if (prevEnd && prevEnd.is(note)) {
                 return false;
             }
         }
@@ -1828,6 +1915,15 @@ MuseScore {
             var processedCount = 0;
             var hairpinsDisabled = 0;
             var processedChords = {};  // Track processed chords to avoid duplicates
+
+            // Tied chains may extend beyond the selection, so measure them over the whole score
+            var allBandurriaLaudStaves = [];
+            for (var s = 0; s < curScore.nstaves; s++) {
+                if (isBandurriaOrLaud(curScore.staves[s])) {
+                    allBandurriaLaudStaves.push(s);
+                }
+            }
+            longTiedNotes = buildLongTiedNotes(allBandurriaLaudStaves);
 
             // MODE 1: Discrete selection - process selected elements directly
             if (useDiscreteSelection) {
@@ -2156,6 +2252,15 @@ MuseScore {
             var articulationsRestored = 0;
             var hairpinsRestored = 0;
             var processedChords = {};  // Track processed chords to avoid duplicates
+
+            // Tied chains may extend beyond the selection, so measure them over the whole score
+            var allBandurriaLaudStaves = [];
+            for (var s = 0; s < curScore.nstaves; s++) {
+                if (isBandurriaOrLaud(curScore.staves[s])) {
+                    allBandurriaLaudStaves.push(s);
+                }
+            }
+            longTiedNotes = buildLongTiedNotes(allBandurriaLaudStaves);
 
             // MODE 1: Discrete selection - process selected elements directly
             if (useDiscreteSelection) {
